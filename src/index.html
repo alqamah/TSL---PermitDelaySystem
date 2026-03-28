@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Permit Delay System — FMM Infra</title>
+  <meta name="description" content="Track and analyze mobile crane permit delays across departments." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ───────── HEADER ───────── -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="logo-group">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Permit Delay System</h1>
+          <p class="subtitle">FMM Infra — Mobile Crane Permit Tracker</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ───────── UPLOAD SECTION ───────── -->
+    <section class="upload-section" id="uploadSection">
+      <div class="upload-zone" id="dropZone">
+        <div class="upload-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M24 32V12m0 0l-8 8m8-8l8 8"/>
+            <path d="M8 36h32" stroke-linecap="round"/>
+            <rect x="4" y="6" width="40" height="36" rx="4"/>
+          </svg>
+        </div>
+        <h2>Upload Permit Tracker</h2>
+        <p>Drag & drop an <strong>.xlsx</strong> file here, or click to browse</p>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
+        <button class="btn-upload" id="browseBtn">Browse Files</button>
+      </div>
+      <p class="file-name-display" id="fileName"></p>
+    </section>
+
+    <!-- ───────── STATS CARDS ───────── -->
+    <section class="stats-row hidden" id="statsRow">
+      <div class="stat-card">
+        <span class="stat-label">Total Records</span>
+        <span class="stat-value" id="statTotal">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Cranes</span>
+        <span class="stat-value" id="statCranes">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Departments</span>
+        <span class="stat-value" id="statDepts">0</span>
+      </div>
+      <div class="stat-card accent">
+        <span class="stat-label">Avg. Delay</span>
+        <span class="stat-value" id="statAvgDelay">—</span>
+      </div>
+    </section>
+
+    <!-- ───────── DATA TABLE ───────── -->
+    <section class="table-section hidden" id="tableSection">
+      <div class="table-toolbar">
+        <h2>Permit Delay Records</h2>
+        <div class="toolbar-controls">
+          <input type="text" id="searchInput" class="search-box" placeholder="Search records…" />
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th>SL</th>
+              <th>Date</th>
+              <th>Crane Name</th>
+              <th>Dept. Name</th>
+              <th>Requester Name</th>
+              <th>Reporting Time</th>
+              <th>Permit Time</th>
+              <th>Delay</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ───────── SCRIPTS ───────── -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
