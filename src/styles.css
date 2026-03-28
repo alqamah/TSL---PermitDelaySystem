@@ -100,18 +100,21 @@ h3 {
 }
 
 .left-logo {
-    position: absolute;
-    left: 0;
+    position: fixed;
+    left: 20px;
+    top: 35px;
     height: 72px;
     width: auto;
+    filter: grayscale(1);
 }
 
 .header-logo {
     position: absolute;
     right: 0;
-    height: 32px;
+    height: 64px;
     width: auto;
     filter: grayscale(1);
+    opacity: 0.2;
 }
 
 .header-nav {
@@ -372,31 +375,6 @@ tr:hover td {
 }
 
 /* ---------- Download Button ---------- */
-.btn-download-excel {
-    background: var(--text-primary);
-    color: var(--bg-primary);
-    border: 2px solid var(--text-primary);
-    padding: var(--spacing) calc(var(--spacing) * 2);
-    font-size: 0.75rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing);
-    transition: all 0.2s ease;
-}
-
-.btn-download-excel:hover {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-}
-
-.btn-download-excel .icon {
-    font-size: 1rem;
-}
-
 .toolbar-controls {
     display: flex;
     gap: var(--spacing);

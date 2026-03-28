@@ -18,7 +18,6 @@
     <header class="app-header">
         <div class="header-content">
             <div class="logo-group">
-                <img src="../db/logo1.svg" alt="App Logo" class="left-logo" />
                 <img src="../db/logo2.svg" alt="Company Logo" class="header-logo" id="headerLogoRight" />
                 <div>
                     <h1>Permit Delay System</h1>
@@ -30,6 +29,9 @@
                 <a href="#tableSection" class="nav-btn">Records</a>
                 <a href="#deptSection" class="nav-btn">Summary</a>
                 <a href="#chartSection" class="nav-btn">Graph</a>
+                <button id="downloadBtn" class="nav-btn" title="Download Excel Report">
+                    Excel
+                </button>
                 <button class="nav-btn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Top</button>
             </div>
         </div>
@@ -79,10 +81,6 @@
                 <h2>Permit Delay Records</h2>
                 <div class="toolbar-controls">
                     <input type="text" id="searchInput" class="search-box" placeholder="Search records…" />
-                    <button id="downloadBtn" class="btn-download-excel" title="Download Excel Report">
-                        <span class="icon">📊</span>
-                        Download Excel
-                    </button>
                 </div>
             </div>
             <div class="table-wrap">
