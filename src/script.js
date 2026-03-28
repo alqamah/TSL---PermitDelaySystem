@@ -521,11 +521,10 @@ let deptChartInstance = null;
 let currentChartType = 'bar';
 let cachedDeptSummary = null;
 
-/** Color palette for departments */
+/** Swiss Color Palette for departments */
 const CHART_COLORS = [
-  '#3b82f6', '#22c55e', '#eab308', '#f97316', '#ef4444',
-  '#a855f7', '#06b6d4', '#ec4899', '#14b8a6', '#f43f5e',
-  '#8b5cf6', '#10b981', '#fbbf24', '#fb923c', '#f87171'
+  '#000000', '#ff0000', '#666666', '#333333', '#999999',
+  '#000000', '#ff0000', '#666666', '#333333', '#999999'
 ];
 
 /**
@@ -568,20 +567,18 @@ function renderBarChart(summary, labels) {
         {
           label: 'Delay Hours',
           data: totalHours,
-          backgroundColor: 'rgba(59, 130, 246, 0.7)',
-          borderColor: '#3b82f6',
-          borderWidth: 1,
-          borderRadius: 6,
+          backgroundColor: '#000000',
+          borderColor: '#000000',
+          borderWidth: 0,
           yAxisID: 'yHours',
           order: 2
         },
         {
           label: 'Amount (₹)',
           data: totalAmounts,
-          backgroundColor: 'rgba(239, 68, 68, 0.55)',
-          borderColor: '#ef4444',
-          borderWidth: 1,
-          borderRadius: 6,
+          backgroundColor: '#ff0000',
+          borderColor: '#ff0000',
+          borderWidth: 0,
           yAxisID: 'yAmount',
           order: 1
         }
@@ -594,23 +591,23 @@ function renderBarChart(summary, labels) {
       plugins: {
         legend: {
           labels: {
-            color: '#94a3b8',
-            font: { family: "'Inter', sans-serif", size: 12, weight: 600 },
-            padding: 16,
+            color: '#000000',
+            font: { family: "'Inter', sans-serif", size: 10, weight: 800 },
+            padding: 20,
             usePointStyle: true,
-            pointStyle: 'rectRounded'
+            pointStyle: 'rect'
           }
         },
         tooltip: {
-          backgroundColor: '#1a2233',
-          titleColor: '#f1f5f9',
-          bodyColor: '#94a3b8',
-          borderColor: '#2a3650',
-          borderWidth: 1,
-          cornerRadius: 8,
+          backgroundColor: '#000000',
+          titleColor: '#ffffff',
+          bodyColor: '#ffffff',
+          borderColor: '#000000',
+          borderWidth: 0,
+          cornerRadius: 0,
           padding: 12,
-          titleFont: { family: "'Inter', sans-serif", weight: 700 },
-          bodyFont: { family: "'Inter', sans-serif" },
+          titleFont: { family: "'Inter', sans-serif", weight: 900, size: 14 },
+          bodyFont: { family: "'Inter', sans-serif", weight: 700 },
           callbacks: {
             label: function(ctx) {
               if (ctx.dataset.yAxisID === 'yAmount') {
@@ -624,10 +621,9 @@ function renderBarChart(summary, labels) {
       scales: {
         x: {
           ticks: {
-            color: '#64748b',
-            font: { size: 11, weight: 500 },
-            maxRotation: 45,
-            minRotation: 0
+            color: '#000000',
+            font: { size: 10, weight: 700 },
+            maxRotation: 0
           },
           grid: { display: false }
         },
@@ -636,12 +632,12 @@ function renderBarChart(summary, labels) {
           position: 'left',
           title: {
             display: true,
-            text: 'Delay Hours',
-            color: '#3b82f6',
-            font: { size: 12, weight: 600 }
+            text: 'HOURS',
+            color: '#000000',
+            font: { size: 10, weight: 900 }
           },
-          ticks: { color: '#3b82f6', font: { size: 11 } },
-          grid: { color: 'rgba(59, 130, 246, 0.08)' },
+          ticks: { color: '#000000', font: { size: 10, weight: 700 } },
+          grid: { color: '#e0e0e0' },
           beginAtZero: true
         },
         yAmount: {
@@ -649,18 +645,18 @@ function renderBarChart(summary, labels) {
           position: 'right',
           title: {
             display: true,
-            text: 'Amount (₹)',
-            color: '#ef4444',
-            font: { size: 12, weight: 600 }
+            text: 'AMOUNT',
+            color: '#ff0000',
+            font: { size: 10, weight: 900 }
           },
           ticks: {
-            color: '#ef4444',
-            font: { size: 11 },
+            color: '#ff0000',
+            font: { size: 10, weight: 700 },
             callback: function(val) {
               return '₹' + val.toLocaleString('en-IN');
             }
           },
-          grid: { drawOnChartArea: false },
+          grid: { display: false },
           beginAtZero: true
         }
       },
@@ -689,10 +685,10 @@ function renderDoughnutChart(summary, labels) {
       labels,
       datasets: [{
         data: amounts,
-        backgroundColor: bgColors.map(c => c + 'cc'),
-        borderColor: bgColors,
+        backgroundColor: bgColors,
+        borderColor: '#ffffff',
         borderWidth: 2,
-        hoverOffset: 12
+        hoverOffset: 0
       }]
     },
     options: {
@@ -703,20 +699,20 @@ function renderDoughnutChart(summary, labels) {
         legend: {
           position: 'right',
           labels: {
-            color: '#94a3b8',
-            font: { family: "'Inter', sans-serif", size: 12, weight: 500 },
+            color: '#000000',
+            font: { family: "'Inter', sans-serif", size: 10, weight: 700 },
             padding: 12,
             usePointStyle: true,
-            pointStyle: 'circle'
+            pointStyle: 'rect'
           }
         },
         tooltip: {
-          backgroundColor: '#1a2233',
-          titleColor: '#f1f5f9',
-          bodyColor: '#94a3b8',
-          borderColor: '#2a3650',
-          borderWidth: 1,
-          cornerRadius: 8,
+          backgroundColor: '#000000',
+          titleColor: '#ffffff',
+          bodyColor: '#ffffff',
+          borderColor: '#000000',
+          borderWidth: 0,
+          cornerRadius: 0,
           padding: 12,
           callbacks: {
             label: function(ctx) {
