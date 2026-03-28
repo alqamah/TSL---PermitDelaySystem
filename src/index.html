@@ -18,7 +18,8 @@
     <header class="app-header">
         <div class="header-content">
             <div class="logo-group">
-                <img src="../../db/logo2.svg" alt="Company Logo" class="header-logo" />
+                <img src="../db/logo1.svg" alt="App Logo" class="left-logo" />
+                <img src="../db/logo2.svg" alt="Company Logo" class="header-logo" id="headerLogoRight" />
                 <div>
                     <h1>Permit Delay System</h1>
                     <p class="subtitle">FMM Infra — Crane Permit Tracker</p>
@@ -45,7 +46,7 @@
                     </div>
                     <h2>Upload Permit Delay Excel File(s)</h2>
                     <p>Drag & drop an <strong>.xlsx</strong> file here, or click to browse</p>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" multiple hidden />
                     <button class="btn-upload" id="browseBtn">Browse Files</button>
                 </div>
                 <p class="file-name-display" id="fileName"></p>
@@ -78,6 +79,10 @@
                 <h2>Permit Delay Records</h2>
                 <div class="toolbar-controls">
                     <input type="text" id="searchInput" class="search-box" placeholder="Search records…" />
+                    <button id="downloadBtn" class="btn-download-excel" title="Download Excel Report">
+                        <span class="icon">📊</span>
+                        Download Excel
+                    </button>
                 </div>
             </div>
             <div class="table-wrap">
@@ -172,7 +177,7 @@
     <!-- ───────── SCRIPTS ───────── -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="../../db/persistent_data.js"></script>
+    <script src="../db/persistent_data.js"></script>
     <script src="script.js"></script>
 </body>
 

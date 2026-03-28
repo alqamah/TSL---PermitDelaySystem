@@ -93,9 +93,17 @@ h3 {
 .logo-group {
     display: flex;
     width: 100%;
-    flex-direction: column;
-    gap: calc(var(--spacing) *1);
+    flex-direction: row;
+    align-items: center;
+    gap: calc(var(--spacing) * 4);
     position: relative;
+}
+
+.left-logo {
+    position: absolute;
+    left: 0;
+    height: 72px;
+    width: auto;
 }
 
 .header-logo {
@@ -361,4 +369,44 @@ tr:hover td {
     .stat-card:last-child {
         border-bottom: none;
     }
+}
+
+/* ---------- Download Button ---------- */
+.btn-download-excel {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    border: 2px solid var(--text-primary);
+    padding: var(--spacing) calc(var(--spacing) * 2);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing);
+    transition: all 0.2s ease;
+}
+
+.btn-download-excel:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.btn-download-excel .icon {
+    font-size: 1rem;
+}
+
+.toolbar-controls {
+    display: flex;
+    gap: var(--spacing);
+    align-items: center;
+}
+
+.search-box {
+    padding: var(--spacing);
+    border: 2px solid var(--border);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    width: 250px;
 }

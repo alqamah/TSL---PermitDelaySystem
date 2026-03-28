@@ -20,6 +20,8 @@ const statsRow     = document.getElementById('statsRow');
 const tableSection = document.getElementById('tableSection');
 const tableBody    = document.getElementById('tableBody');
 const searchInput  = document.getElementById('searchInput');
+const downloadBtn  = document.getElementById('downloadBtn');
+const deptTableBody = document.getElementById('deptTableBody');
 
 // ─── State ───────────────────────────────────
 let allRecords = [];   // master flat list of parsed rows
@@ -33,7 +35,7 @@ browseBtn.addEventListener('click', (e) => {
 dropZone.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', (e) => {
-  if (e.target.files.length) handleFile(e.target.files[0]);
+  if (e.target.files.length) handleFiles(e.target.files);
 });
 
 dropZone.addEventListener('dragover', (e) => {
@@ -48,7 +50,7 @@ dropZone.addEventListener('dragleave', () => {
 dropZone.addEventListener('drop', (e) => {
   e.preventDefault();
   dropZone.classList.remove('drag-over');
-  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
 });
 
 // ─── Search / Filter ─────────────────────────
@@ -69,20 +71,61 @@ searchInput.addEventListener('input', () => {
 // ═══════════════════════════════════════════════
 //  CORE:  Read Excel → Parse Sheets → Build Data
 // ═══════════════════════════════════════════════
-function handleFile(file) {
-  if (!file) return;
-  fileNameEl.textContent = `📄 ${file.name}`;
+/**
+ * handleFiles: processes multiple Excel files, aggregates all parsed records,
+ * and refreshes the dashboard UI.
+ */
+async function handleFiles(fileList) {
+  if (!fileList || fileList.length === 0) return;
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const data = new Uint8Array(e.target.result);
-    // ⚠ cellDates:false (default) — keeps raw serial numbers,
-    //   avoids the timezone-shift bug with JS Date objects.
-    const workbook = XLSX.read(data, { type: 'array' });
-    allRecords = parseWorkbook(workbook);
-    showResults();
-  };
-  reader.readAsArrayBuffer(file);
+  // 1. Update File Display Label
+  if (fileList.length === 1) {
+    fileNameEl.textContent = `📄 ${fileList[0].name}`;
+  } else {
+    fileNameEl.textContent = `📚 ${fileList.length} Files Selected`;
+  }
+
+  // 2. Read and parse all files in parallel
+  const filesArray = Array.from(fileList);
+  const allParsedRecords = [];
+
+  const readPromises = filesArray.map(file => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const records = parseWorkbook(workbook);
+          allParsedRecords.push(...records);
+          resolve();
+        } catch (err) {
+          console.error(`Error parsing ${file.name}:`, err);
+          // Don't fail the whole promise if one file is bad? 
+          // For now, let's just resolve to continue with the others.
+          resolve(); 
+        }
+      };
+
+      reader.onerror = (err) => {
+        console.error(`FileReader error on ${file.name}:`, err);
+        resolve(); // Continue with others
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+  });
+
+  // 3. Wait for all files to be processed
+  await Promise.all(readPromises);
+
+  // 4. Update the global state and UI
+  // Combine with existing or replace? User's "update" usually means replace current view.
+  allRecords = allParsedRecords;
+  allRecords.sort((a, b) => a.date - b.date); 
+
+  showResults();
 }
 
 // ─── Parse every sheet in the workbook ────────
@@ -327,6 +370,10 @@ function showResults() {
   statsRow.classList.remove('hidden');
   tableSection.classList.remove('hidden');
   document.getElementById('navPanelTop').classList.remove('hidden');
+
+  // Remove logo2.svg once results are displayed
+  const rightLogo = document.getElementById('headerLogoRight');
+  if (rightLogo) rightLogo.remove();
 
   renderTable(allRecords);
 
@@ -757,5 +804,100 @@ document.getElementById('btnDoughnutChart').addEventListener('click', function()
 function toggleChartButtons(activeBtn) {
   document.querySelectorAll('.chart-toggle').forEach(b => b.classList.remove('active'));
   activeBtn.classList.add('active');
+}
+
+// ─── Export to Excel ────────────────────────
+downloadBtn.addEventListener('click', () => {
+  if (allRecords.length === 0) {
+    alert('No data to export!');
+    return;
+  }
+  downloadExcel();
+});
+
+function downloadExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // --- Sheet 1: DelayRecords ---
+  // Map allRecords to a cleaner structure for Excel
+  const sheet1Data = allRecords.map((r, i) => ({
+    'SL': i + 1,
+    'Date': r.dateStr,
+    'Crane Name': r.craneName,
+    'Dept. Name': r.department,
+    'Requester Name': r.requester,
+    'Reporting Time': r.reportTime,
+    'Permit Time': r.permitTime,
+    'Delay': r.delayStr,
+    'Amount (₹)': r.amount
+  }));
+  const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
+  XLSX.utils.book_append_sheet(wb, ws1, 'DelayRecords');
+
+  // --- Sheet 2: Dept. Delays ---
+  const deptSummary = buildDeptSummary(allRecords);
+  const sheet2Data = [];
+
+  // Table Headers (matching UI)
+  const headers = [
+    'S.NO', 'DEPARTMENT', 'CONTACT PERSON',
+    '160T Hrs', '160T Amount',
+    '100T Hrs', '100T Amount',
+    '80T Hrs', '80T Amount',
+    '55T Hrs', '55T Amount',
+    '40T Hrs', '40T Amount',
+    '300T Hrs', '300T Amount',
+    'DEPT. TOTAL'
+  ];
+  sheet2Data.push(headers);
+
+  // Table Data
+  let netLoss = 0;
+  deptSummary.forEach((row, i) => {
+    netLoss += row.total;
+    const rowData = [
+      i + 1,
+      row.department,
+      row.contactPerson
+    ];
+
+    CRANE_TYPES.forEach(type => {
+      const c = row.cranes[type];
+      rowData.push(c.hours > 0 ? parseFloat(c.hours.toFixed(2)) : 0);
+      rowData.push(c.amount > 0 ? Math.round(c.amount) : 0);
+    });
+
+    rowData.push(row.total);
+    sheet2Data.push(rowData);
+  });
+
+  // Footer / Net Loss
+  sheet2Data.push([]);
+  const footerRow = Array(15).fill('');
+  footerRow[0] = 'NET LOSS:';
+  footerRow[15] = netLoss;
+  sheet2Data.push(footerRow);
+
+  const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+  
+  // Basic styling (column widths)
+  ws2['!cols'] = [
+    { wch: 5 },  // SL
+    { wch: 25 }, // Dept
+    { wch: 20 }, // Contact
+    { wch: 10 }, { wch: 12 }, // 160T
+    { wch: 10 }, { wch: 12 }, // 100T
+    { wch: 10 }, { wch: 12 }, // 80T
+    { wch: 10 }, { wch: 12 }, // 55T
+    { wch: 10 }, { wch: 12 }, // 40T
+    { wch: 10 }, { wch: 12 }, // 300T
+    { wch: 15 }  // Total
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws2, 'Dept. Delays');
+
+  // --- Write File ---
+  const timestamp = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `Permit_Delay_Report_${timestamp}.xlsx`);
 }
 
