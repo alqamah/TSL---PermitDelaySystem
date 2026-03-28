@@ -818,8 +818,7 @@ downloadBtn.addEventListener('click', () => {
 function downloadExcel() {
   const wb = XLSX.utils.book_new();
 
-  // --- Sheet 1: DelayRecords ---
-  // Map allRecords to a cleaner structure for Excel
+  // --- Sheet 1: DelayRecords -> delay-records ---
   const sheet1Data = allRecords.map((r, i) => ({
     'SL': i + 1,
     'Date': r.dateStr,
@@ -832,13 +831,52 @@ function downloadExcel() {
     'Amount (₹)': r.amount
   }));
   const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
-  XLSX.utils.book_append_sheet(wb, ws1, 'DelayRecords');
 
-  // --- Sheet 2: Dept. Delays ---
+  // Basic styling for Sheet 1
+  const range1 = XLSX.utils.decode_range(ws1['!ref']);
+  for (let R = range1.s.r; R <= range1.e.r; ++R) {
+    for (let C = range1.s.c; C <= range1.e.c; ++C) {
+      const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+      let cell = ws1[cell_ref];
+      if (!cell) continue;
+      
+      let style = {
+        font: { name: 'Calibri', sz: 11, color: { rgb: '000000' } },
+        border: {
+          top: { style: 'thin', color: { rgb: '000000' } },
+          bottom: { style: 'thin', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: '000000' } },
+          right: { style: 'thin', color: { rgb: '000000' } }
+        },
+        alignment: { vertical: 'center', horizontal: 'left' }
+      };
+      
+      if (R === 0) {
+        style.font.bold = true;
+        style.fill = { fgColor: { rgb: 'DDDDDD' } };
+        style.alignment.horizontal = 'center';
+      }
+      if (C === 8 && R > 0) {
+        style.numFmt = '#,##0.00';
+      }
+
+      cell.s = style;
+    }
+  }
+
+  // Column widths for sheet 1
+  ws1['!cols'] = [
+    { wch: 5 }, { wch: 12 }, { wch: 15 }, { wch: 20 },
+    { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws1, 'delay-records');
+
+  // --- Sheet 2: Department Permit Delay Summary ---
   const deptSummary = buildDeptSummary(allRecords);
   const sheet2Data = [];
 
-  // Table Headers (matching UI)
+  // Table Headers (match image styling if possible)
   const headers = [
     'S.NO', 'DEPARTMENT', 'CONTACT PERSON',
     '160T Hrs', '160T Amount',
@@ -858,43 +896,126 @@ function downloadExcel() {
     const rowData = [
       i + 1,
       row.department,
-      row.contactPerson
+      row.contactPerson || ''
     ];
 
     CRANE_TYPES.forEach(type => {
       const c = row.cranes[type];
       rowData.push(c.hours > 0 ? parseFloat(c.hours.toFixed(2)) : 0);
-      rowData.push(c.amount > 0 ? Math.round(c.amount) : 0);
+      rowData.push(c.amount > 0 ? parseFloat(c.amount.toFixed(2)) : 0);
     });
 
-    rowData.push(row.total);
+    rowData.push(parseFloat(row.total.toFixed(2)));
     sheet2Data.push(rowData);
   });
 
   // Footer / Net Loss
-  sheet2Data.push([]);
-  const footerRow = Array(15).fill('');
+  const footerRow = Array(16).fill('');
   footerRow[0] = 'NET LOSS:';
-  footerRow[15] = netLoss;
+  footerRow[15] = parseFloat(netLoss.toFixed(2));
   sheet2Data.push(footerRow);
 
   const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
   
+  // Style Sheet 2
+  const range2 = XLSX.utils.decode_range(ws2['!ref']);
+  for (let R = range2.s.r; R <= range2.e.r; ++R) {
+    for (let C = range2.s.c; C <= range2.e.c; ++C) {
+      const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+      let cell = ws2[cell_ref];
+      
+      if (!cell) {
+        cell = { t: 's', v: '' }; // blank cell insert
+        ws2[cell_ref] = cell;
+      }
+
+      let style = {
+        font: { name: 'Calibri', sz: 11, color: { rgb: '000000' } },
+        border: {
+          top: { style: 'thin', color: { rgb: '000000' } },
+          bottom: { style: 'thin', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: '000000' } },
+          right: { style: 'thin', color: { rgb: '000000' } }
+        },
+        alignment: { vertical: 'center', horizontal: 'center' }
+      };
+
+      if (R === 0) {
+        // Header row
+        style.font.bold = true;
+        style.fill = { fgColor: { rgb: 'DDDDDD' } };
+      } else if (R === range2.e.r) {
+        // Net Loss row
+        style.font.bold = true;
+        style.font.color = { rgb: 'FFFFFF' };
+        style.fill = { fgColor: { rgb: 'C00000' } }; // Red
+        
+        if (C === 15) {
+          style.numFmt = '#,##0.00';
+          style.alignment.horizontal = 'right';
+        } else if (C === 0) {
+          style.alignment.horizontal = 'right';
+        }
+      } else {
+        // Data rows
+        if (C === 1 || C === 2) {
+          style.alignment.horizontal = 'left';
+        }
+        
+        // Match numbers formatting
+        if (C >= 3 && C <= 14) {
+          if (C % 2 === 0) {
+            // Amount columns: 4, 6, 8, 10, 12, 14
+            style.numFmt = '#,##0.00';
+            if (cell.v === 0) {
+              cell.t = 's';
+              cell.v = '-';
+              style.alignment.horizontal = 'center';
+            } else {
+              style.alignment.horizontal = 'right';
+            }
+          }
+        }
+        
+        // FFD966 is the gold background from image, applied to Total col.
+        if (C === 15) {
+          style.fill = { fgColor: { rgb: 'FFD966' } };
+          style.numFmt = '#,##0.00';
+          style.alignment.horizontal = 'right';
+        }
+
+        // FFF2CC is the pale yellow from the image, we apply it to Col 4 (first amount col) to recreate screenshot feel.
+        if (C === 4) {
+          style.fill = { fgColor: { rgb: 'FFF2CC' } };
+        }
+      }
+      
+      cell.s = style;
+    }
+  }
+
+  // Merge the "NET LOSS:" cells
+  if (!ws2['!merges']) ws2['!merges'] = [];
+  ws2['!merges'].push({
+    s: { r: range2.e.r, c: 0 },
+    e: { r: range2.e.r, c: 14 }
+  });
+
   // Basic styling (column widths)
   ws2['!cols'] = [
-    { wch: 5 },  // SL
+    { wch: 6 },  // SL
     { wch: 25 }, // Dept
-    { wch: 20 }, // Contact
-    { wch: 10 }, { wch: 12 }, // 160T
-    { wch: 10 }, { wch: 12 }, // 100T
-    { wch: 10 }, { wch: 12 }, // 80T
-    { wch: 10 }, { wch: 12 }, // 55T
-    { wch: 10 }, { wch: 12 }, // 40T
-    { wch: 10 }, { wch: 12 }, // 300T
+    { wch: 15 }, // Contact
+    { wch: 8 }, { wch: 12 }, // 160T
+    { wch: 8 }, { wch: 12 }, // 100T
+    { wch: 8 }, { wch: 12 }, // 80T
+    { wch: 8 }, { wch: 12 }, // 55T
+    { wch: 8 }, { wch: 12 }, // 40T
+    { wch: 8 }, { wch: 12 }, // 300T
     { wch: 15 }  // Total
   ];
 
-  XLSX.utils.book_append_sheet(wb, ws2, 'Dept. Delays');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Department Permit Delay Summary');
 
   // --- Write File ---
   const timestamp = new Date().toISOString().split('T')[0];

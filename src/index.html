@@ -26,9 +26,9 @@
             </div>
 
             <div class="header-nav hidden" id="navPanelTop">
-                <a href="#tableSection" class="nav-btn">Records</a>
-                <a href="#deptSection" class="nav-btn">Summary</a>
-                <a href="#chartSection" class="nav-btn">Graph</a>
+                <button class="nav-btn" onclick="document.getElementById('tableSection').scrollIntoView({behavior: 'smooth'})">Records</button>
+                <button class="nav-btn" onclick="document.getElementById('deptSection').scrollIntoView({behavior: 'smooth'})">Summary</button>
+                <button class="nav-btn" onclick="document.getElementById('chartSection').scrollIntoView({behavior: 'smooth'})">Graph</button>
                 <button id="downloadBtn" class="nav-btn" title="Download Excel Report">
                     Excel
                 </button>
@@ -173,7 +173,7 @@
     </footer>
 
     <!-- ───────── SCRIPTS ───────── -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="../db/persistent_data.js"></script>
     <script src="script.js"></script>

@@ -265,6 +265,19 @@ td {
     font-size: 0.9rem;
 }
 
+.crane-group {
+    background-color: #666666;
+    border-left: 2px solid var(--border);
+    text-align: center;
+}
+
+.dept-total-col {
+    max-lines: 2;
+    text-align: center;
+    padding: 0 20px;
+    background-color: #ff0000;
+}
+
 tr:hover td {
     background: var(--bg-secondary);
 }
@@ -277,6 +290,11 @@ tr:hover td {
 
 .delay-pill.red {
     color: var(--accent);
+}
+
+.net-loss-value {
+    color: #ff0000;
+    font-weight: 800;
 }
 
 /* ---------- Charts ---------- */
