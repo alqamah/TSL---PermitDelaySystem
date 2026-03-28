@@ -277,7 +277,6 @@ function fractionToTimeString(frac) {
 
 /**
  * Delay = (permitFrac − reportFrac) × 1440  →  minutes.
- * Pure arithmetic on fractions — no Date objects, no timezone issues.
  */
 function computeDelay(reportFrac, permitFrac) {
   if (reportFrac === null || permitFrac === null) return null;
@@ -310,18 +309,15 @@ function formatDelay(mins) {
 // ═══════════════════════════════════════════════
 function showResults() {
   const totalRecords = allRecords.length;
-  const cranes = new Set(allRecords.map(r => r.craneName)).size;
-  const depts  = new Set(allRecords.map(r => r.department).filter(Boolean)).size;
   const delays = allRecords.map(r => r.delayMin).filter(d => d !== null && d >= 0);
-  const avgDelay = delays.length
-    ? Math.round(delays.reduce((a, b) => a + b, 0) / delays.length)
-    : null;
+  const totalDelayMin = delays.reduce((a, b) => a + b, 0);
+  const avgDelay = delays.length ? Math.round(totalDelayMin / delays.length) : null;
 
-  document.getElementById('statTotal').textContent  = totalRecords;
-  document.getElementById('statCranes').textContent  = cranes;
-  document.getElementById('statDepts').textContent   = depts;
+  document.getElementById('statTotal').textContent = totalRecords;
   document.getElementById('statAvgDelay').textContent = avgDelay !== null
     ? formatDelay(avgDelay) : '—';
+  document.getElementById('statTotalDelay').textContent = totalDelayMin > 0
+    ? formatDelay(totalDelayMin) : '—';
 
   const totalAmount = allRecords.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   document.getElementById('statTotalAmount').textContent = totalAmount > 0
@@ -330,8 +326,15 @@ function showResults() {
 
   statsRow.classList.remove('hidden');
   tableSection.classList.remove('hidden');
+  document.getElementById('navPanelTop').classList.remove('hidden');
 
   renderTable(allRecords);
+
+  // Department summary
+  const deptSummary = buildDeptSummary(allRecords);
+  renderDeptTable(deptSummary);
+  renderDeptChart(deptSummary);
+  document.getElementById('deptSection').classList.remove('hidden');
 }
 
 function renderTable(records) {
@@ -384,3 +387,379 @@ function getCraneRate(name) {
   }
   return 0;
 }
+
+// ═══════════════════════════════════════════════
+//  DEPARTMENT SUMMARY:  Aggregate by Dept
+// ═══════════════════════════════════════════════
+
+/** Crane types to show in the summary (column order) */
+const CRANE_TYPES = ['160T', '100T', '80T', '55T', '40T', '300T'];
+
+/**
+ * Extract the tonnage type from a crane name.
+ * e.g. "40T-1" → "40T", "160T" → "160T", "300T" → "300T"
+ */
+function getCraneType(craneName) {
+  if (!craneName) return null;
+  // Match digits followed by 'T' (case insensitive)
+  const match = craneName.toUpperCase().match(/(\d+T)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Build department summary from all records.
+ * Returns an array of dept objects sorted by DEPT. TOTAL descending.
+ */
+function buildDeptSummary(records) {
+  const deptMap = {}; // dept → { contact, cranes: { type → { hours, amount } }, total }
+
+  records.forEach(r => {
+    if (!r.department) return;
+    const dept = r.department;
+
+    if (!deptMap[dept]) {
+      deptMap[dept] = {
+        department: dept,
+        contactCounts: {},  // requester → count (to find most frequent)
+        cranes: {},
+        total: 0
+      };
+      CRANE_TYPES.forEach(t => {
+        deptMap[dept].cranes[t] = { hours: 0, amount: 0 };
+      });
+    }
+
+    const entry = deptMap[dept];
+
+    // Track requester frequency
+    if (r.requester) {
+      entry.contactCounts[r.requester] = (entry.contactCounts[r.requester] || 0) + 1;
+    }
+
+    // Aggregate by crane type
+    const craneType = getCraneType(r.craneName);
+    if (craneType && entry.cranes[craneType]) {
+      const delayHrs = (r.delayMin !== null && r.delayMin > 0) ? r.delayMin / 60 : 0;
+      entry.cranes[craneType].hours  += delayHrs;
+      entry.cranes[craneType].amount += (r.amount || 0);
+    }
+  });
+
+  // Compute totals and contact person
+  const result = Object.values(deptMap).map(entry => {
+    // Most frequent requester = contact person
+    let maxCount = 0, contactPerson = '';
+    for (const [name, count] of Object.entries(entry.contactCounts)) {
+      if (count > maxCount) { maxCount = count; contactPerson = name; }
+    }
+
+    // Dept total = sum of all crane amounts
+    let deptTotal = 0;
+    CRANE_TYPES.forEach(t => { deptTotal += entry.cranes[t].amount; });
+
+    return {
+      department: entry.department,
+      contactPerson,
+      cranes: entry.cranes,
+      total: deptTotal
+    };
+  });
+
+  // Sort by total descending
+  result.sort((a, b) => b.total - a.total);
+  return result;
+}
+
+/**
+ * Render the department summary table.
+ */
+function renderDeptTable(summary) {
+  const tbody = document.getElementById('deptTableBody');
+  tbody.innerHTML = '';
+
+  let netLoss = 0;
+
+  summary.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    netLoss += row.total;
+
+    let cells = `
+      <td>${i + 1}</td>
+      <td class="dept-name-cell">${row.department}</td>
+      <td>${row.contactPerson}</td>
+    `;
+
+    CRANE_TYPES.forEach(type => {
+      const c = row.cranes[type];
+      const hrs = c.hours > 0 ? c.hours.toFixed(2) : '0';
+      const amt = c.amount > 0
+        ? c.amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+        : '0';
+      cells += `<td class="hrs-cell">${hrs}</td>`;
+      cells += `<td class="amt-cell">${amt}</td>`;
+    });
+
+    cells += `<td class="dept-total-cell">₹ ${row.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`;
+
+    tr.innerHTML = cells;
+    tbody.appendChild(tr);
+  });
+
+  // NET LOSS footer
+  const netLossCell = document.getElementById('netLossCell');
+  netLossCell.innerHTML = `
+    <span class="net-loss-label">NET LOSS:</span>
+    <span class="net-loss-value">₹ ${netLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+  `;
+}
+
+// ═══════════════════════════════════════════════
+//  CHART:  Interactive Department Graph
+// ═══════════════════════════════════════════════
+
+let deptChartInstance = null;
+let currentChartType = 'bar';
+let cachedDeptSummary = null;
+
+/** Color palette for departments */
+const CHART_COLORS = [
+  '#3b82f6', '#22c55e', '#eab308', '#f97316', '#ef4444',
+  '#a855f7', '#06b6d4', '#ec4899', '#14b8a6', '#f43f5e',
+  '#8b5cf6', '#10b981', '#fbbf24', '#fb923c', '#f87171'
+];
+
+/**
+ * Render the department chart (called from showResults).
+ */
+function renderDeptChart(summary) {
+  cachedDeptSummary = summary;
+  document.getElementById('chartSection').classList.remove('hidden');
+
+  // Truncate long department names for chart labels
+  const labels = summary.map(d => {
+    const name = d.department;
+    return name.length > 18 ? name.slice(0, 16) + '…' : name;
+  });
+
+  if (currentChartType === 'bar') {
+    renderBarChart(summary, labels);
+  } else {
+    renderDoughnutChart(summary, labels);
+  }
+}
+
+function renderBarChart(summary, labels) {
+  destroyChart();
+
+  const totalHours = summary.map(d => {
+    let hrs = 0;
+    CRANE_TYPES.forEach(t => { hrs += d.cranes[t].hours; });
+    return parseFloat(hrs.toFixed(2));
+  });
+
+  const totalAmounts = summary.map(d => Math.round(d.total));
+
+  const ctx = document.getElementById('deptChart').getContext('2d');
+  deptChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Delay Hours',
+          data: totalHours,
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: '#3b82f6',
+          borderWidth: 1,
+          borderRadius: 6,
+          yAxisID: 'yHours',
+          order: 2
+        },
+        {
+          label: 'Amount (₹)',
+          data: totalAmounts,
+          backgroundColor: 'rgba(239, 68, 68, 0.55)',
+          borderColor: '#ef4444',
+          borderWidth: 1,
+          borderRadius: 6,
+          yAxisID: 'yAmount',
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#94a3b8',
+            font: { family: "'Inter', sans-serif", size: 12, weight: 600 },
+            padding: 16,
+            usePointStyle: true,
+            pointStyle: 'rectRounded'
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1a2233',
+          titleColor: '#f1f5f9',
+          bodyColor: '#94a3b8',
+          borderColor: '#2a3650',
+          borderWidth: 1,
+          cornerRadius: 8,
+          padding: 12,
+          titleFont: { family: "'Inter', sans-serif", weight: 700 },
+          bodyFont: { family: "'Inter', sans-serif" },
+          callbacks: {
+            label: function(ctx) {
+              if (ctx.dataset.yAxisID === 'yAmount') {
+                return `  Amount: ₹ ${ctx.parsed.y.toLocaleString('en-IN')}`;
+              }
+              return `  Hours: ${ctx.parsed.y}h`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#64748b',
+            font: { size: 11, weight: 500 },
+            maxRotation: 45,
+            minRotation: 0
+          },
+          grid: { display: false }
+        },
+        yHours: {
+          type: 'linear',
+          position: 'left',
+          title: {
+            display: true,
+            text: 'Delay Hours',
+            color: '#3b82f6',
+            font: { size: 12, weight: 600 }
+          },
+          ticks: { color: '#3b82f6', font: { size: 11 } },
+          grid: { color: 'rgba(59, 130, 246, 0.08)' },
+          beginAtZero: true
+        },
+        yAmount: {
+          type: 'linear',
+          position: 'right',
+          title: {
+            display: true,
+            text: 'Amount (₹)',
+            color: '#ef4444',
+            font: { size: 12, weight: 600 }
+          },
+          ticks: {
+            color: '#ef4444',
+            font: { size: 11 },
+            callback: function(val) {
+              return '₹' + val.toLocaleString('en-IN');
+            }
+          },
+          grid: { drawOnChartArea: false },
+          beginAtZero: true
+        }
+      },
+      animation: {
+        duration: 800,
+        easing: 'easeOutQuart'
+      }
+    }
+  });
+}
+
+function renderDoughnutChart(summary, labels) {
+  destroyChart();
+
+  const amounts = summary.map(d => Math.round(d.total));
+  const bgColors = summary.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
+  const borderColors = summary.map((_, i) => {
+    const c = CHART_COLORS[i % CHART_COLORS.length];
+    return c;
+  });
+
+  const ctx = document.getElementById('deptChart').getContext('2d');
+  deptChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: amounts,
+        backgroundColor: bgColors.map(c => c + 'cc'),
+        borderColor: bgColors,
+        borderWidth: 2,
+        hoverOffset: 12
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '55%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: '#94a3b8',
+            font: { family: "'Inter', sans-serif", size: 12, weight: 500 },
+            padding: 12,
+            usePointStyle: true,
+            pointStyle: 'circle'
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1a2233',
+          titleColor: '#f1f5f9',
+          bodyColor: '#94a3b8',
+          borderColor: '#2a3650',
+          borderWidth: 1,
+          cornerRadius: 8,
+          padding: 12,
+          callbacks: {
+            label: function(ctx) {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+              return `  ₹ ${ctx.parsed.toLocaleString('en-IN')}  (${pct}%)`;
+            }
+          }
+        }
+      },
+      animation: {
+        animateRotate: true,
+        duration: 900,
+        easing: 'easeOutQuart'
+      }
+    }
+  });
+}
+
+function destroyChart() {
+  if (deptChartInstance) {
+    deptChartInstance.destroy();
+    deptChartInstance = null;
+  }
+}
+
+// ─── Chart Toggle Buttons ───────────────────
+document.getElementById('btnBarChart').addEventListener('click', function() {
+  if (currentChartType === 'bar') return;
+  currentChartType = 'bar';
+  toggleChartButtons(this);
+  if (cachedDeptSummary) renderDeptChart(cachedDeptSummary);
+});
+
+document.getElementById('btnDoughnutChart').addEventListener('click', function() {
+  if (currentChartType === 'doughnut') return;
+  currentChartType = 'doughnut';
+  toggleChartButtons(this);
+  if (cachedDeptSummary) renderDeptChart(cachedDeptSummary);
+});
+
+function toggleChartButtons(activeBtn) {
+  document.querySelectorAll('.chart-toggle').forEach(b => b.classList.remove('active'));
+  activeBtn.classList.add('active');
+}
+

@@ -1,112 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Permit Delay System — FMM Infra</title>
-  <meta name="description" content="Track and analyze mobile crane permit delays across departments." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Permit Delay System — FMM Infra</title>
+    <meta name="description" content="Track and analyze mobile crane permit delays across departments." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
 
-  <!-- ───────── HEADER ───────── -->
-  <header class="app-header">
-    <div class="header-content">
-      <div class="logo-group">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-            <path d="M2 17l10 5 10-5"/>
-            <path d="M2 12l10 5 10-5"/>
-          </svg>
+    <!-- ───────── HEADER ───────── -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="logo-group">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                        <path d="M2 17l10 5 10-5" />
+                        <path d="M2 12l10 5 10-5" />
+                    </svg>
+                </div>
+                <div>
+                    <h1>Permit Delay System</h1>
+                    <p class="subtitle">FMM Infra — Mobile Crane Permit Tracker</p>
+                </div>
+            </div>
+            
+            <div class="header-nav hidden" id="navPanelTop">
+                <a href="#tableSection" class="nav-btn nav-btn-records" title="Permit Delay Records">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <path d="M3 9h18M3 15h18M9 3v18" />
+                    </svg>
+                    <span>Records</span>
+                </a>
+                <a href="#deptSection" class="nav-btn nav-btn-dept" title="Department Summary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span>Summary</span>
+                </a>
+                <a href="#chartSection" class="nav-btn nav-btn-chart" title="Department Graph">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <rect x="3" y="12" width="4" height="9" rx="1" />
+                        <rect x="10" y="6" width="4" height="15" rx="1" />
+                        <rect x="17" y="3" width="4" height="18" rx="1" />
+                    </svg>
+                    <span>Graph</span>
+                </a>
+                <button class="nav-btn top-btn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Go To Top">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                </button>
+            </div>
         </div>
-        <div>
-          <h1>Permit Delay System</h1>
-          <p class="subtitle">FMM Infra — Mobile Crane Permit Tracker</p>
-        </div>
-      </div>
-    </div>
-  </header>
+    </header>
 
-  <main class="container">
+    <main class="container">
 
-    <!-- ───────── UPLOAD SECTION ───────── -->
-    <section class="upload-section" id="uploadSection">
-      <div class="upload-zone" id="dropZone">
-        <div class="upload-icon">
-          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M24 32V12m0 0l-8 8m8-8l8 8"/>
-            <path d="M8 36h32" stroke-linecap="round"/>
-            <rect x="4" y="6" width="40" height="36" rx="4"/>
-          </svg>
-        </div>
-        <h2>Upload Permit Tracker</h2>
-        <p>Drag & drop an <strong>.xlsx</strong> file here, or click to browse</p>
-        <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
-        <button class="btn-upload" id="browseBtn">Browse Files</button>
-      </div>
-      <p class="file-name-display" id="fileName"></p>
-    </section>
+        <!-- ───────── UPLOAD + NAV SECTION ───────── -->
+        <section class="upload-nav-row">
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-zone" id="dropZone">
+                    <div class="upload-icon">
+                        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M24 32V12m0 0l-8 8m8-8l8 8" />
+                            <path d="M8 36h32" stroke-linecap="round" />
+                            <rect x="4" y="6" width="40" height="36" rx="4" />
+                        </svg>
+                    </div>
+                    <h2>Upload Permit Tracker</h2>
+                    <p>Drag & drop an <strong>.xlsx</strong> file here, or click to browse</p>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
+                    <button class="btn-upload" id="browseBtn">Browse Files</button>
+                </div>
+                <p class="file-name-display" id="fileName"></p>
+            </div>
+        </section>
+                <a href="#deptSection" class="nav-btn nav-btn-dept">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span>Department Summary</span>
+                </a>
+                <a href="#chartSection" class="nav-btn nav-btn-chart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                        <rect x="3" y="12" width="4" height="9" rx="1" />
+                        <rect x="10" y="6" width="4" height="15" rx="1" />
+                        <rect x="17" y="3" width="4" height="18" rx="1" />
+                    </svg>
+                    <span>Department Graph</span>
+                </a>
+            </div>
+        </section>
 
-    <!-- ───────── STATS CARDS ───────── -->
-    <section class="stats-row hidden" id="statsRow">
-      <div class="stat-card">
-        <span class="stat-label">Total Records</span>
-        <span class="stat-value" id="statTotal">0</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Cranes</span>
-        <span class="stat-value" id="statCranes">0</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Departments</span>
-        <span class="stat-value" id="statDepts">0</span>
-      </div>
-      <div class="stat-card accent">
-        <span class="stat-label">Avg. Delay</span>
-        <span class="stat-value" id="statAvgDelay">—</span>
-      </div>
-      <div class="stat-card danger">
-        <span class="stat-label">Total Delay Cost</span>
-        <span class="stat-value" id="statTotalAmount">₹ 0</span>
-      </div>
-    </section>
+        <!-- ───────── STATS CARDS ───────── -->
+        <section class="stats-row hidden" id="statsRow">
+            <div class="stat-card">
+                <span class="stat-label">Total Records</span>
+                <span class="stat-value" id="statTotal">0</span>
+            </div>
+            <div class="stat-card accent">
+                <span class="stat-label">Avg. Delay</span>
+                <span class="stat-value" id="statAvgDelay">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total Delay</span>
+                <span class="stat-value" id="statTotalDelay">—</span>
+            </div>
+            <div class="stat-card danger">
+                <span class="stat-label">Total Delay Cost</span>
+                <span class="stat-value" id="statTotalAmount">₹ 0</span>
+            </div>
+        </section>
 
-    <!-- ───────── DATA TABLE ───────── -->
-    <section class="table-section hidden" id="tableSection">
-      <div class="table-toolbar">
-        <h2>Permit Delay Records</h2>
-        <div class="toolbar-controls">
-          <input type="text" id="searchInput" class="search-box" placeholder="Search records…" />
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table id="dataTable">
-          <thead>
-            <tr>
-              <th>SL</th>
-              <th>Date</th>
-              <th>Crane Name</th>
-              <th>Dept. Name</th>
-              <th>Requester Name</th>
-              <th>Reporting Time</th>
-              <th>Permit Time</th>
-              <th>Delay</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
-      </div>
-    </section>
+        <!-- ───────── DATA TABLE ───────── -->
+        <section class="table-section hidden" id="tableSection">
+            <div class="table-toolbar">
+                <h2>Permit Delay Records</h2>
+                <div class="toolbar-controls">
+                    <input type="text" id="searchInput" class="search-box" placeholder="Search records…" />
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>SL</th>
+                            <th>Date</th>
+                            <th>Crane Name</th>
+                            <th>Dept. Name</th>
+                            <th>Requester Name</th>
+                            <th>Reporting Time</th>
+                            <th>Permit Time</th>
+                            <th>Delay</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </section>
 
-  </main>
+        <!-- ───────── DEPARTMENT SUMMARY TABLE ───────── -->
+        <section class="table-section hidden" id="deptSection">
+            <div class="table-toolbar">
+                <h2>Department Permit Delay Summary</h2>
+            </div>
+            <div class="table-wrap">
+                <table class="dept-table" id="deptTable">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">S.NO</th>
+                            <th rowspan="2">DEPARTMENT</th>
+                            <th rowspan="2">CONTACT PERSON</th>
+                            <th colspan="2" class="crane-group">160T</th>
+                            <th colspan="2" class="crane-group">100T</th>
+                            <th colspan="2" class="crane-group">80T</th>
+                            <th colspan="2" class="crane-group">55T</th>
+                            <th colspan="2" class="crane-group">40T</th>
+                            <th colspan="2" class="crane-group">300T</th>
+                            <th rowspan="2" class="dept-total-col">DEPT. TOTAL</th>
+                        </tr>
+                        <tr>
+                            <th class="sub-col">Hrs</th>
+                            <th class="sub-col">Amount</th>
+                            <th class="sub-col">Hrs</th>
+                            <th class="sub-col">Amount</th>
+                            <th class="sub-col">Hrs</th>
+                            <th class="sub-col">Amount</th>
+                            <th class="sub-col">Hrs</th>
+                            <th class="sub-col">Amount</th>
+                            <th class="sub-col">Hrs</th>
+                            <th class="sub-col">Amount</th>
+                            <th class="sub-col">Hrs</th>
+                            <th class="sub-col">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deptTableBody"></tbody>
+                    <tfoot>
+                        <tr class="net-loss-row">
+                            <td colspan="15" id="netLossCell"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </section>
 
-  <!-- ───────── SCRIPTS ───────── -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="../../db/persistent_data.js"></script>
-  <script src="script.js"></script>
+        <!-- ───────── DEPARTMENT GRAPH ───────── -->
+        <section class="table-section hidden" id="chartSection">
+            <div class="table-toolbar">
+                <h2>Department Delay Overview</h2>
+                <div class="chart-toggle-group">
+                    <button class="chart-toggle active" data-chart="bar" id="btnBarChart">Bar</button>
+                    <button class="chart-toggle" data-chart="doughnut" id="btnDoughnutChart">Doughnut</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="deptChart"></canvas>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ───────── SCRIPTS ───────── -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="../../db/persistent_data.js"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>
