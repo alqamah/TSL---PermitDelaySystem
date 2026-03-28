@@ -68,6 +68,10 @@
         <span class="stat-label">Avg. Delay</span>
         <span class="stat-value" id="statAvgDelay">—</span>
       </div>
+      <div class="stat-card danger">
+        <span class="stat-label">Total Delay Cost</span>
+        <span class="stat-value" id="statTotalAmount">₹ 0</span>
+      </div>
     </section>
 
     <!-- ───────── DATA TABLE ───────── -->
@@ -90,6 +94,7 @@
               <th>Reporting Time</th>
               <th>Permit Time</th>
               <th>Delay</th>
+              <th>Amount</th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -101,6 +106,7 @@
 
   <!-- ───────── SCRIPTS ───────── -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="../../db/persistent_data.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
