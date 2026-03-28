@@ -20,15 +20,18 @@
             <div class="logo-group">
                 <img src="../db/logo2.svg" alt="Company Logo" class="header-logo" id="headerLogoRight" />
                 <div>
-                    <h1>Permit Delay System</h1>
-                    <p class="subtitle">FMM Infra — Crane Permit Tracker</p>
+                    <h1>Permit Delay Tracker</h1>
+                    <p class="subtitle">FMM Infra — track permit delays across all departments</p>
                 </div>
             </div>
 
             <div class="header-nav hidden" id="navPanelTop">
-                <button class="nav-btn" onclick="document.getElementById('tableSection').scrollIntoView({behavior: 'smooth'})">Records</button>
-                <button class="nav-btn" onclick="document.getElementById('deptSection').scrollIntoView({behavior: 'smooth'})">Summary</button>
-                <button class="nav-btn" onclick="document.getElementById('chartSection').scrollIntoView({behavior: 'smooth'})">Graph</button>
+                <button class="nav-btn"
+                    onclick="document.getElementById('tableSection').scrollIntoView({behavior: 'smooth'})">Records</button>
+                <button class="nav-btn"
+                    onclick="document.getElementById('deptSection').scrollIntoView({behavior: 'smooth'})">Summary</button>
+                <button class="nav-btn"
+                    onclick="document.getElementById('chartSection').scrollIntoView({behavior: 'smooth'})">Graph</button>
                 <button id="downloadBtn" class="nav-btn" title="Download Excel Report">
                     Excel
                 </button>
@@ -112,7 +115,7 @@
                 <table class="dept-table" id="deptTable">
                     <thead>
                         <tr>
-                            <th rowspan="2">S.NO</th>
+                            <th rowspan="2">SL</th>
                             <th rowspan="2">DEPARTMENT</th>
                             <th rowspan="2">CONTACT PERSON</th>
                             <th colspan="2" class="crane-group">160T</th>

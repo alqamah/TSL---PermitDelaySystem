@@ -12,15 +12,15 @@
    ═══════════════════════════════════════════ */
 
 // ─── DOM References ──────────────────────────
-const dropZone     = document.getElementById('dropZone');
-const fileInput    = document.getElementById('fileInput');
-const browseBtn    = document.getElementById('browseBtn');
-const fileNameEl   = document.getElementById('fileName');
-const statsRow     = document.getElementById('statsRow');
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const browseBtn = document.getElementById('browseBtn');
+const fileNameEl = document.getElementById('fileName');
+const statsRow = document.getElementById('statsRow');
 const tableSection = document.getElementById('tableSection');
-const tableBody    = document.getElementById('tableBody');
-const searchInput  = document.getElementById('searchInput');
-const downloadBtn  = document.getElementById('downloadBtn');
+const tableBody = document.getElementById('tableBody');
+const searchInput = document.getElementById('searchInput');
+const downloadBtn = document.getElementById('downloadBtn');
 const deptTableBody = document.getElementById('deptTableBody');
 
 // ─── State ───────────────────────────────────
@@ -59,11 +59,11 @@ searchInput.addEventListener('input', () => {
   renderTable(
     term
       ? allRecords.filter(r =>
-          r.craneName.toLowerCase().includes(term) ||
-          r.department.toLowerCase().includes(term) ||
-          r.requester.toLowerCase().includes(term) ||
-          r.dateStr.toLowerCase().includes(term)
-        )
+        r.craneName.toLowerCase().includes(term) ||
+        r.department.toLowerCase().includes(term) ||
+        r.requester.toLowerCase().includes(term) ||
+        r.dateStr.toLowerCase().includes(term)
+      )
       : allRecords
   );
 });
@@ -80,7 +80,7 @@ async function handleFiles(fileList) {
 
   // 1. Update File Display Label
   if (fileList.length === 1) {
-    fileNameEl.textContent = `📄 ${fileList[0].name}`;
+    fileNameEl.textContent = `✅ ${fileList[0].name}`;
   } else {
     fileNameEl.textContent = `📚 ${fileList.length} Files Selected`;
   }
@@ -104,7 +104,7 @@ async function handleFiles(fileList) {
           console.error(`Error parsing ${file.name}:`, err);
           // Don't fail the whole promise if one file is bad? 
           // For now, let's just resolve to continue with the others.
-          resolve(); 
+          resolve();
         }
       };
 
@@ -123,7 +123,7 @@ async function handleFiles(fileList) {
   // 4. Update the global state and UI
   // Combine with existing or replace? User's "update" usually means replace current view.
   allRecords = allParsedRecords;
-  allRecords.sort((a, b) => a.date - b.date); 
+  allRecords.sort((a, b) => a.date - b.date);
 
   showResults();
 }
@@ -152,11 +152,11 @@ function parseWorkbook(wb) {
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
     for (let R = 3; R <= range.e.r; R++) {
       // Column B (1) = Date
-      const cellDate   = ws[XLSX.utils.encode_cell({ r: R, c: 1 })];
+      const cellDate = ws[XLSX.utils.encode_cell({ r: R, c: 1 })];
       // Column D (3) = Department
-      const cellDept   = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
+      const cellDept = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
       // Column E (4) = Requester Name
-      const cellReq    = ws[XLSX.utils.encode_cell({ r: R, c: 4 })];
+      const cellReq = ws[XLSX.utils.encode_cell({ r: R, c: 4 })];
       // Column G (6) = Crane Reporting Time at Site
       const cellReport = ws[XLSX.utils.encode_cell({ r: R, c: 6 })];
       // Column I (8) = Permit Handover Time
@@ -168,12 +168,12 @@ function parseWorkbook(wb) {
       const dateVal = parseDateValue(cellDate);
       if (!dateVal) continue;  // truly empty / invalid
 
-      const department  = cellDept ? String(cellDept.v || '').trim() : '';
-      const requester   = cellReq  ? String(cellReq.v  || '').trim() : '';
+      const department = cellDept ? String(cellDept.v || '').trim() : '';
+      const requester = cellReq ? String(cellReq.v || '').trim() : '';
 
       // Extract raw fractional values for time math
-      const reportFrac  = getRawTimeFraction(cellReport);
-      const permitFrac  = getRawTimeFraction(cellPermit);
+      const reportFrac = getRawTimeFraction(cellReport);
+      const permitFrac = getRawTimeFraction(cellPermit);
 
       // Display strings: use cell.w (Excel-formatted) when available
       const reportDisplay = getTimeDisplay(cellReport);
@@ -184,20 +184,20 @@ function parseWorkbook(wb) {
 
       // Hourly Rate and Total Amount
       const craneRate = typeof getCraneRate === 'function' ? getCraneRate(craneName) : 0;
-      const amount    = delayMin > 0 ? (delayMin / 60) * craneRate : 0;
+      const amount = delayMin > 0 ? (delayMin / 60) * craneRate : 0;
 
       craneMap[craneName].push({
         craneRate,
         amount,
         craneName,
-        date:       dateVal,
-        dateStr:    formatDate(dateVal),
+        date: dateVal,
+        dateStr: formatDate(dateVal),
         department,
         requester,
         reportTime: reportDisplay,
         permitTime: permitDisplay,
         delayMin,
-        delayStr:   delayMin !== null ? formatDelay(delayMin) : '—'
+        delayStr: delayMin !== null ? formatDelay(delayMin) : '—'
       });
     }
   });
@@ -323,27 +323,27 @@ function fractionToTimeString(frac) {
  */
 function computeDelay(reportFrac, permitFrac) {
   if (reportFrac === null || permitFrac === null) return null;
-  const diffMinutes = Math.round((permitFrac - reportFrac) * 1440);
+  const diffMinutes = Math.round((permitFrac - reportFrac) * 1440) - 30;
   return diffMinutes;
 }
 
 function formatDate(d) {
   if (!d) return '';
-  const day   = String(d.getUTCDate()).padStart(2, '0');
-  const months = ['Jan','Feb','Mar','Apr','May','Jun',
-                  'Jul','Aug','Sep','Oct','Nov','Dec'];
-  const mon   = months[d.getUTCMonth()];
-  const year  = String(d.getUTCFullYear()).slice(-2);
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const mon = months[d.getUTCMonth()];
+  const year = String(d.getUTCFullYear()).slice(-2);
   return `${day}-${mon}-${year}`;
 }
 
 function formatDelay(mins) {
   if (mins === null) return '—';
   const sign = mins < 0 ? '-' : '';
-  const abs  = Math.abs(mins);
-  const h    = Math.floor(abs / 60);
-  const m    = abs % 60;
-  if (h > 0) return `${sign}${h}h ${String(m).padStart(2,'0')}m`;
+  const abs = Math.abs(mins);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  if (h > 0) return `${sign}${h}h ${String(m).padStart(2, '0')}m`;
   return `${sign}${m}m`;
 }
 
@@ -393,10 +393,11 @@ function renderTable(records) {
     // Determine delay severity for pill styling
     let pillClass = '';
     if (r.delayMin !== null) {
-      if      (r.delayMin < 0)    pillClass = 'red';
-      else if (r.delayMin < 60)   pillClass = 'green';
-      else if (r.delayMin >= 480) pillClass = 'orange';
-      else                        pillClass = 'yellow';
+      if (r.delayMin > 480) pillClass = 'red';
+      else if (r.delayMin > 240) pillClass = 'orange';
+      else if (r.delayMin > 120) pillClass = 'yellow';
+      else if (r.delayMin < -30) pillClass = 'grey';
+      else pillClass = 'green';
     }
 
     tr.innerHTML = `
@@ -407,7 +408,7 @@ function renderTable(records) {
       <td>${r.requester}</td>
       <td>${r.reportTime}</td>
       <td>${r.permitTime}</td>
-      <td><span class="delay-pill ${pillClass}">${r.delayStr}</span></td>
+      <td title= "30min overhead reduced"><span class="delay-pill ${pillClass}">${r.delayStr}</span></td>
       <td class="amount-cell">
         ${r.amount > 0 ? '₹ ' + r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
       </td>
@@ -420,10 +421,10 @@ function renderTable(records) {
  */
 function getCraneRate(name) {
   if (typeof CRANE_RATES === 'undefined' || !name) return 0;
-  
+
   // Try exact match first (e.g., "160T-1")
   if (CRANE_RATES[name]) return CRANE_RATES[name];
-  
+
   // Try prefix match (e.g., "40T-1" matches "40T")
   // Sort keys by length descending to match most specific first
   const keys = Object.keys(CRANE_RATES).sort((a, b) => b.length - a.length);
@@ -487,7 +488,7 @@ function buildDeptSummary(records) {
     const craneType = getCraneType(r.craneName);
     if (craneType && entry.cranes[craneType]) {
       const delayHrs = (r.delayMin !== null && r.delayMin > 0) ? r.delayMin / 60 : 0;
-      entry.cranes[craneType].hours  += delayHrs;
+      entry.cranes[craneType].hours += delayHrs;
       entry.cranes[craneType].amount += (r.amount || 0);
     }
   });
@@ -656,7 +657,7 @@ function renderBarChart(summary, labels) {
           titleFont: { family: "'Inter', sans-serif", weight: 900, size: 14 },
           bodyFont: { family: "'Inter', sans-serif", weight: 700 },
           callbacks: {
-            label: function(ctx) {
+            label: function (ctx) {
               if (ctx.dataset.yAxisID === 'yAmount') {
                 return `  Amount: ₹ ${ctx.parsed.y.toLocaleString('en-IN')}`;
               }
@@ -699,7 +700,7 @@ function renderBarChart(summary, labels) {
           ticks: {
             color: '#ff0000',
             font: { size: 10, weight: 700 },
-            callback: function(val) {
+            callback: function (val) {
               return '₹' + val.toLocaleString('en-IN');
             }
           },
@@ -762,7 +763,7 @@ function renderDoughnutChart(summary, labels) {
           cornerRadius: 0,
           padding: 12,
           callbacks: {
-            label: function(ctx) {
+            label: function (ctx) {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
               return `  ₹ ${ctx.parsed.toLocaleString('en-IN')}  (${pct}%)`;
@@ -787,14 +788,14 @@ function destroyChart() {
 }
 
 // ─── Chart Toggle Buttons ───────────────────
-document.getElementById('btnBarChart').addEventListener('click', function() {
+document.getElementById('btnBarChart').addEventListener('click', function () {
   if (currentChartType === 'bar') return;
   currentChartType = 'bar';
   toggleChartButtons(this);
   if (cachedDeptSummary) renderDeptChart(cachedDeptSummary);
 });
 
-document.getElementById('btnDoughnutChart').addEventListener('click', function() {
+document.getElementById('btnDoughnutChart').addEventListener('click', function () {
   if (currentChartType === 'doughnut') return;
   currentChartType = 'doughnut';
   toggleChartButtons(this);
@@ -839,7 +840,7 @@ function downloadExcel() {
       const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
       let cell = ws1[cell_ref];
       if (!cell) continue;
-      
+
       let style = {
         font: { name: 'Calibri', sz: 11, color: { rgb: '000000' } },
         border: {
@@ -850,7 +851,7 @@ function downloadExcel() {
         },
         alignment: { vertical: 'center', horizontal: 'left' }
       };
-      
+
       if (R === 0) {
         style.font.bold = true;
         style.fill = { fgColor: { rgb: 'DDDDDD' } };
@@ -916,14 +917,14 @@ function downloadExcel() {
   sheet2Data.push(footerRow);
 
   const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
-  
+
   // Style Sheet 2
   const range2 = XLSX.utils.decode_range(ws2['!ref']);
   for (let R = range2.s.r; R <= range2.e.r; ++R) {
     for (let C = range2.s.c; C <= range2.e.c; ++C) {
       const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
       let cell = ws2[cell_ref];
-      
+
       if (!cell) {
         cell = { t: 's', v: '' }; // blank cell insert
         ws2[cell_ref] = cell;
@@ -949,7 +950,7 @@ function downloadExcel() {
         style.font.bold = true;
         style.font.color = { rgb: 'FFFFFF' };
         style.fill = { fgColor: { rgb: 'C00000' } }; // Red
-        
+
         if (C === 15) {
           style.numFmt = '#,##0.00';
           style.alignment.horizontal = 'right';
@@ -961,7 +962,7 @@ function downloadExcel() {
         if (C === 1 || C === 2) {
           style.alignment.horizontal = 'left';
         }
-        
+
         // Match numbers formatting
         if (C >= 3 && C <= 14) {
           if (C % 2 === 0) {
@@ -976,7 +977,7 @@ function downloadExcel() {
             }
           }
         }
-        
+
         // FFD966 is the gold background from image, applied to Total col.
         if (C === 15) {
           style.fill = { fgColor: { rgb: 'FFD966' } };
@@ -989,7 +990,7 @@ function downloadExcel() {
           style.fill = { fgColor: { rgb: 'FFF2CC' } };
         }
       }
-      
+
       cell.s = style;
     }
   }

@@ -50,7 +50,7 @@ h3 {
 }
 
 h1 {
-    font-size: 3.5rem;
+    font-size: 3.3rem;
     margin-bottom: var(--spacing);
 }
 
@@ -111,7 +111,7 @@ h3 {
 .header-logo {
     position: absolute;
     right: 0;
-    height: 64px;
+    height: 55px;
     width: auto;
     filter: grayscale(1);
     opacity: 0.2;
@@ -263,6 +263,7 @@ td {
     padding: var(--spacing);
     border-bottom: 1px solid var(--border-light);
     font-size: 0.9rem;
+    text-transform: uppercase;
 }
 
 .crane-group {
@@ -289,7 +290,23 @@ tr:hover td {
 }
 
 .delay-pill.red {
-    color: var(--accent);
+    color: #ff0000;
+}
+
+.delay-pill.orange {
+    color: #ff8c00;
+}
+
+.delay-pill.yellow {
+    color: #d4af37; /* using a slightly darker yellow for better contrast on white background */
+}
+
+.delay-pill.grey {
+    color: #888888;
+}
+
+.delay-pill.green {
+    color: #4caf50;
 }
 
 .net-loss-value {
