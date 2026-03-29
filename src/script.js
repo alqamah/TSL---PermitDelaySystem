@@ -20,7 +20,7 @@ const statsRow = document.getElementById('statsRow');
 const tableSection = document.getElementById('tableSection');
 const tableBody = document.getElementById('tableBody');
 const searchInput = document.getElementById('searchInput');
-const downloadBtn = document.getElementById('downloadBtn');
+const downloadbtn = document.getElementById('downloadbtn');
 const deptTableBody = document.getElementById('deptTableBody');
 
 // ─── State ───────────────────────────────────
@@ -32,7 +32,9 @@ browseBtn.addEventListener('click', (e) => {
   fileInput.click();
 });
 
-dropZone.addEventListener('click', () => fileInput.click());
+// browseBtn.addEventListener('click', (e) => { ... }) handles the manual click.
+// dropZone drag events handle the drop.
+// The direct click on dropZone is removed as per user request.
 
 fileInput.addEventListener('change', (e) => {
   if (e.target.files.length) handleFiles(e.target.files);
@@ -808,7 +810,7 @@ function toggleChartButtons(activeBtn) {
 }
 
 // ─── Export to Excel ────────────────────────
-downloadBtn.addEventListener('click', () => {
+downloadbtn.addEventListener('click', () => {
   if (allRecords.length === 0) {
     alert('No data to export!');
     return;

@@ -18,7 +18,7 @@
     <header class="app-header">
         <div class="header-content">
             <div class="logo-group">
-                <img src="../db/logo2.svg" alt="Company Logo" class="header-logo" id="headerLogoRight" />
+                <img src="../assets/logo2.svg" alt="Company Logo" class="header-logo" id="headerLogoRight" />
                 <div>
                     <h1>Permit Delay Tracker</h1>
                     <p class="subtitle">Track crane permit delays across all departments</p>
@@ -32,7 +32,7 @@
                     onclick="document.getElementById('deptSection').scrollIntoView({behavior: 'smooth'})">Summary</button>
                 <button class="nav-btn"
                     onclick="document.getElementById('chartSection').scrollIntoView({behavior: 'smooth'})">Graph</button>
-                <button id="downloadBtn" class="nav-btn" title="Download Excel Report">
+                <button id="downloadbtn" class="nav-btn" title="Download Excel Report">
                     Excel
                 </button>
                 <button class="nav-btn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">Top</button>
@@ -49,8 +49,12 @@
                     <div class="upload-icon">
                         <!-- Removed SVG for visual purity -->
                     </div>
-                    <h2>Upload Permit Delay Excel File(s)</h2>
-                    <p>Drag & drop an <strong>.xlsx</strong> file here, or click to browse</p>
+                    <h2>Upload Permit Delay Excel File</h2>
+                    <p>Drag & drop the excel file here, or click to browse. Use the <strong><a
+                                href="../assets/formats/ip_format.xlsx" download target="_blank">specified
+                                format</a></strong> only,
+                        for the xlsx
+                        file.</p>
                     <input type="file" id="fileInput" accept=".xlsx,.xls" multiple hidden />
                     <button class="btn-upload" id="browseBtn">Browse Files</button>
                 </div>
@@ -178,7 +182,7 @@
     <!-- ───────── SCRIPTS ───────── -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="../db/persistent_data.js"></script>
+    <script src="../assets/persistent_data.js"></script>
     <script src="script.js"></script>
 </body>
 

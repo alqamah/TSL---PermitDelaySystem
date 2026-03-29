@@ -63,6 +63,15 @@ h3 {
     font-size: 1.25rem;
 }
 
+a {
+    text-decoration: none;
+    color: var(--accent);
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 .subtitle {
     font-size: 1rem;
     font-weight: 500;
@@ -162,7 +171,7 @@ section {
     padding: calc(var(--spacing) * 10);
     text-align: left;
     position: relative;
-    cursor: pointer;
+    cursor: default;
 }
 
 .upload-zone::after {
@@ -298,7 +307,8 @@ tr:hover td {
 }
 
 .delay-pill.yellow {
-    color: #d4af37; /* using a slightly darker yellow for better contrast on white background */
+    color: #d4af37;
+    /* using a slightly darker yellow for better contrast on white background */
 }
 
 .delay-pill.grey {
