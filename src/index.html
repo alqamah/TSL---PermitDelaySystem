@@ -101,7 +101,7 @@
                             <th>Requester Name</th>
                             <th>Reporting Time</th>
                             <th>Permit Time</th>
-                            <th>Delay</th>
+                            <th title="grace of 30mins is excluded">Adjusted Delay</th>
                             <th>Amount</th>
                         </tr>
                     </thead>
@@ -114,6 +114,9 @@
         <section class="table-section hidden" id="deptSection">
             <div class="table-toolbar">
                 <h2>Department Permit Delay Summary</h2>
+                <div class="toolbar-controls">
+                    <input type="text" id="deptSearchInput" class="search-box" placeholder="Search departments…" />
+                </div>
             </div>
             <div class="table-wrap">
                 <table class="dept-table" id="deptTable">
@@ -122,12 +125,13 @@
                             <th rowspan="2">SL</th>
                             <th rowspan="2">DEPARTMENT</th>
                             <th rowspan="2">CONTACT PERSON</th>
+                            <th colspan="2" class="crane-group">450T</th>
+                            <th colspan="2" class="crane-group">350T</th>
                             <th colspan="2" class="crane-group">160T</th>
-                            <th colspan="2" class="crane-group">100T</th>
-                            <th colspan="2" class="crane-group">80T</th>
+                            <th colspan="2" class="crane-group">110T</th>
                             <th colspan="2" class="crane-group">55T</th>
                             <th colspan="2" class="crane-group">40T</th>
-                            <th colspan="2" class="crane-group">300T</th>
+
                             <th rowspan="2" class="dept-total-col">DEPT. TOTAL</th>
                         </tr>
                         <tr>

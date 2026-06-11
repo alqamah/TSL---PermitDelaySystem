@@ -20,11 +20,13 @@ const statsRow = document.getElementById('statsRow');
 const tableSection = document.getElementById('tableSection');
 const tableBody = document.getElementById('tableBody');
 const searchInput = document.getElementById('searchInput');
+const deptSearchInput = document.getElementById('deptSearchInput');
 const downloadbtn = document.getElementById('downloadbtn');
 const deptTableBody = document.getElementById('deptTableBody');
 
 // ─── State ───────────────────────────────────
-let allRecords = [];   // master flat list of parsed rows
+let allRecords = [];      // master flat list of parsed rows
+let allDeptSummary = [];  // master list of parsed department summary rows
 
 // ─── File Upload Events ──────────────────────
 browseBtn.addEventListener('click', (e) => {
@@ -68,6 +70,17 @@ searchInput.addEventListener('input', () => {
       )
       : allRecords
   );
+});
+
+deptSearchInput.addEventListener('input', () => {
+  const term = deptSearchInput.value.toLowerCase().trim();
+  const filtered = term
+    ? allDeptSummary.filter(d =>
+      d.department.toLowerCase().includes(term) ||
+      d.contactPerson.toLowerCase().includes(term)
+    )
+    : allDeptSummary;
+  renderDeptTable(filtered);
 });
 
 // ═══════════════════════════════════════════════
@@ -126,6 +139,10 @@ async function handleFiles(fileList) {
   // Combine with existing or replace? User's "update" usually means replace current view.
   allRecords = allParsedRecords;
   allRecords.sort((a, b) => a.date - b.date);
+
+  // Clear existing search filter inputs
+  searchInput.value = '';
+  deptSearchInput.value = '';
 
   showResults();
 }
@@ -380,9 +397,10 @@ function showResults() {
   renderTable(allRecords);
 
   // Department summary
-  const deptSummary = buildDeptSummary(allRecords);
-  renderDeptTable(deptSummary);
-  renderDeptChart(deptSummary);
+  renderDeptTableHeaders();
+  allDeptSummary = buildDeptSummary(allRecords);
+  renderDeptTable(allDeptSummary);
+  renderDeptChart(allDeptSummary);
   document.getElementById('deptSection').classList.remove('hidden');
 }
 
@@ -442,8 +460,49 @@ function getCraneRate(name) {
 //  DEPARTMENT SUMMARY:  Aggregate by Dept
 // ═══════════════════════════════════════════════
 
-/** Crane types to show in the summary (column order) */
-const CRANE_TYPES = ['160T', '100T', '80T', '55T', '40T', '300T'];
+/** Crane types to show in the summary (column order) derived dynamically from CRANE_RATES */
+const CRANE_TYPES = typeof CRANE_RATES !== 'undefined'
+  ? Object.keys(CRANE_RATES).sort((a, b) => {
+      const numA = parseInt(a, 10) || 0;
+      const numB = parseInt(b, 10) || 0;
+      return numB - numA;
+    })
+  : [];
+
+/**
+ * Dynamically render headers for the department summary table based on CRANE_TYPES
+ */
+function renderDeptTableHeaders() {
+  const deptTable = document.getElementById('deptTable');
+  if (!deptTable) return;
+  const thead = deptTable.querySelector('thead');
+  if (!thead) return;
+
+  let row1 = `
+    <tr>
+      <th rowspan="2">SL</th>
+      <th rowspan="2">DEPARTMENT</th>
+      <th rowspan="2">CONTACT PERSON</th>
+  `;
+  CRANE_TYPES.forEach(t => {
+    row1 += `<th colspan="2" class="crane-group">${t}</th>`;
+  });
+  row1 += `
+      <th rowspan="2" class="dept-total-col">DEPT. TOTAL</th>
+    </tr>
+  `;
+
+  let row2 = `<tr>`;
+  CRANE_TYPES.forEach(() => {
+    row2 += `
+      <th class="sub-col">Hrs</th>
+      <th class="sub-col">Amount</th>
+    `;
+  });
+  row2 += `</tr>`;
+
+  thead.innerHTML = row1 + row2;
+}
 
 /**
  * Extract the tonnage type from a crane name.
@@ -557,6 +616,7 @@ function renderDeptTable(summary) {
 
   // NET LOSS footer
   const netLossCell = document.getElementById('netLossCell');
+  netLossCell.colSpan = 3 + 2 * CRANE_TYPES.length;
   netLossCell.innerHTML = `
     <span class="net-loss-label">NET LOSS:</span>
     <span class="net-loss-value">₹ ${netLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -584,11 +644,8 @@ function renderDeptChart(summary) {
   cachedDeptSummary = summary;
   document.getElementById('chartSection').classList.remove('hidden');
 
-  // Truncate long department names for chart labels
-  const labels = summary.map(d => {
-    const name = d.department;
-    return name.length > 18 ? name.slice(0, 16) + '…' : name;
-  });
+  // Use full department names for chart labels
+  const labels = summary.map(d => d.department);
 
   if (currentChartType === 'bar') {
     renderBarChart(summary, labels);
@@ -659,6 +716,10 @@ function renderBarChart(summary, labels) {
           titleFont: { family: "'Inter', sans-serif", weight: 900, size: 14 },
           bodyFont: { family: "'Inter', sans-serif", weight: 700 },
           callbacks: {
+            title: function (context) {
+              const index = context[0].dataIndex;
+              return summary[index].department;
+            },
             label: function (ctx) {
               if (ctx.dataset.yAxisID === 'yAmount') {
                 return `  Amount: ₹ ${ctx.parsed.y.toLocaleString('en-IN')}`;
@@ -671,9 +732,11 @@ function renderBarChart(summary, labels) {
       scales: {
         x: {
           ticks: {
+            autoSkip: false,
             color: '#000000',
-            font: { size: 10, weight: 700 },
-            maxRotation: 0
+            font: { size: 9, weight: 700 },
+            maxRotation: 45,
+            minRotation: 0
           },
           grid: { display: false }
         },
@@ -765,6 +828,10 @@ function renderDoughnutChart(summary, labels) {
           cornerRadius: 0,
           padding: 12,
           callbacks: {
+            title: function (context) {
+              const index = context[0].dataIndex;
+              return summary[index].department;
+            },
             label: function (ctx) {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
@@ -879,17 +946,12 @@ function downloadExcel() {
   const deptSummary = buildDeptSummary(allRecords);
   const sheet2Data = [];
 
-  // Table Headers (match image styling if possible)
-  const headers = [
-    'S.NO', 'DEPARTMENT', 'CONTACT PERSON',
-    '160T Hrs', '160T Amount',
-    '100T Hrs', '100T Amount',
-    '80T Hrs', '80T Amount',
-    '55T Hrs', '55T Amount',
-    '40T Hrs', '40T Amount',
-    '300T Hrs', '300T Amount',
-    'DEPT. TOTAL'
-  ];
+  // Table Headers (dynamically built from CRANE_TYPES)
+  const headers = ['S.NO', 'DEPARTMENT', 'CONTACT PERSON'];
+  CRANE_TYPES.forEach(type => {
+    headers.push(`${type} Hrs`, `${type} Amount`);
+  });
+  headers.push('DEPT. TOTAL');
   sheet2Data.push(headers);
 
   // Table Data
@@ -913,9 +975,9 @@ function downloadExcel() {
   });
 
   // Footer / Net Loss
-  const footerRow = Array(16).fill('');
+  const footerRow = Array(3 + 2 * CRANE_TYPES.length).fill('');
   footerRow[0] = 'NET LOSS:';
-  footerRow[15] = parseFloat(netLoss.toFixed(2));
+  footerRow[3 + 2 * CRANE_TYPES.length - 1] = parseFloat(netLoss.toFixed(2));
   sheet2Data.push(footerRow);
 
   const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
@@ -953,7 +1015,7 @@ function downloadExcel() {
         style.font.color = { rgb: 'FFFFFF' };
         style.fill = { fgColor: { rgb: 'C00000' } }; // Red
 
-        if (C === 15) {
+        if (C === range2.e.c) {
           style.numFmt = '#,##0.00';
           style.alignment.horizontal = 'right';
         } else if (C === 0) {
@@ -966,9 +1028,9 @@ function downloadExcel() {
         }
 
         // Match numbers formatting
-        if (C >= 3 && C <= 14) {
+        if (C >= 3 && C < range2.e.c) {
           if (C % 2 === 0) {
-            // Amount columns: 4, 6, 8, 10, 12, 14
+            // Amount columns: index is even
             style.numFmt = '#,##0.00';
             if (cell.v === 0) {
               cell.t = 's';
@@ -981,13 +1043,13 @@ function downloadExcel() {
         }
 
         // FFD966 is the gold background from image, applied to Total col.
-        if (C === 15) {
+        if (C === range2.e.c) {
           style.fill = { fgColor: { rgb: 'FFD966' } };
           style.numFmt = '#,##0.00';
           style.alignment.horizontal = 'right';
         }
 
-        // FFF2CC is the pale yellow from the image, we apply it to Col 4 (first amount col) to recreate screenshot feel.
+        // FFF2CC is the pale yellow, applied to Col 4 (first amount col) to recreate screenshot feel.
         if (C === 4) {
           style.fill = { fgColor: { rgb: 'FFF2CC' } };
         }
@@ -1001,22 +1063,20 @@ function downloadExcel() {
   if (!ws2['!merges']) ws2['!merges'] = [];
   ws2['!merges'].push({
     s: { r: range2.e.r, c: 0 },
-    e: { r: range2.e.r, c: 14 }
+    e: { r: range2.e.r, c: 3 + 2 * CRANE_TYPES.length - 1 }
   });
 
   // Basic styling (column widths)
-  ws2['!cols'] = [
+  const cols = [
     { wch: 6 },  // SL
     { wch: 25 }, // Dept
-    { wch: 15 }, // Contact
-    { wch: 8 }, { wch: 12 }, // 160T
-    { wch: 8 }, { wch: 12 }, // 100T
-    { wch: 8 }, { wch: 12 }, // 80T
-    { wch: 8 }, { wch: 12 }, // 55T
-    { wch: 8 }, { wch: 12 }, // 40T
-    { wch: 8 }, { wch: 12 }, // 300T
-    { wch: 15 }  // Total
+    { wch: 15 }  // Contact
   ];
+  CRANE_TYPES.forEach(() => {
+    cols.push({ wch: 8 }, { wch: 12 });
+  });
+  cols.push({ wch: 15 }); // Total
+  ws2['!cols'] = cols;
 
   XLSX.utils.book_append_sheet(wb, ws2, 'Department Permit Delay Summary');
 
