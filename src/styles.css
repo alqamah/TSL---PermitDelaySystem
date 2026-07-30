@@ -263,21 +263,27 @@ th {
     color: var(--bg-primary);
     text-align: left;
     padding: calc(var(--spacing) * 1.5) var(--spacing);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 800;
     text-transform: uppercase;
+    border: 1px solid #555555;
 }
 
 td {
     padding: var(--spacing);
-    border-bottom: 1px solid var(--border-light);
-    font-size: 0.9rem;
+    border: 1px solid #e0e0e0;
+    font-size: 0.8rem;
     text-transform: uppercase;
 }
 
 .crane-group {
     background-color: #666666;
-    border-left: 2px solid var(--border);
+    border: 1px solid #555555;
+    text-align: center;
+}
+
+.sub-col {
+    border: 1px solid #555555;
     text-align: center;
 }
 
@@ -286,6 +292,7 @@ td {
     text-align: center;
     padding: 0 20px;
     background-color: #ff0000;
+    border: 1px solid #555555;
 }
 
 tr:hover td {

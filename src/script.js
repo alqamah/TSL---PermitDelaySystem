@@ -156,54 +156,90 @@ function parseWorkbook(wb) {
     if (!ws) return;
 
     // --- Crane name: prefer cell F2, fallback to sheet name ---
-    let craneName = sheetName;
+    let sheetCraneName = sheetName;
     const cellF2 = ws['F2'];
     if (cellF2) {
       const raw = String(cellF2.v || '').trim();
-      // Format is "CRANE :- 40T-1", extract after ":-"
       const match = raw.match(/CRANE\s*[:\-]+\s*(.+)/i);
-      craneName = match ? match[1].trim() : (raw || sheetName);
+      sheetCraneName = match ? match[1].trim() : (raw || sheetName);
     }
-
-    if (!craneMap[craneName]) craneMap[craneName] = [];
 
     // --- Walk rows starting from row 4 (index 3) ---
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
     for (let R = 3; R <= range.e.r; R++) {
       // Column B (1) = Date
       const cellDate = ws[XLSX.utils.encode_cell({ r: R, c: 1 })];
-      // Column D (3) = Department
-      const cellDept = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
-      // Column E (4) = Requester Name
+      // Column C (2) = Department
+      const cellDept = ws[XLSX.utils.encode_cell({ r: R, c: 2 })];
+      // Column D (3) = Location
+      const cellLocation = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
+      // Column E (4) = User Name (Requester)
       const cellReq = ws[XLSX.utils.encode_cell({ r: R, c: 4 })];
-      // Column G (6) = Crane Reporting Time at Site
+      // Column G (6) = Crane Reaching Time at Site
       const cellReport = ws[XLSX.utils.encode_cell({ r: R, c: 6 })];
-      // Column I (8) = Permit Handover Time
-      const cellPermit = ws[XLSX.utils.encode_cell({ r: R, c: 8 })];
+      // Column I (8) = Crane Time / Crane Type / Name
+      const cellCrane = ws[XLSX.utils.encode_cell({ r: R, c: 8 })];
+      // Column J (9) = Hiring Cost / Hour
+      const cellRate = ws[XLSX.utils.encode_cell({ r: R, c: 9 })];
+      // Column K (10) = Permit No.
+      const cellPermitNo = ws[XLSX.utils.encode_cell({ r: R, c: 10 })];
+      // Column L (11) = Permit Created Time
+      const cellPermitCreated = ws[XLSX.utils.encode_cell({ r: R, c: 11 })];
+      // Column O (14) = Permit Taken Time (Accepted by Vendor)
+      const cellPermit = ws[XLSX.utils.encode_cell({ r: R, c: 14 })];
+      // Column Q (16) = Total Delay Hours (adjusted)
+      const cellDelayHours = ws[XLSX.utils.encode_cell({ r: R, c: 16 })];
+      // Column R (17) = Total Delay Cost
+      const cellDelayCost = ws[XLSX.utils.encode_cell({ r: R, c: 17 })];
+      // Column S (18) = Reason for Delay
+      const cellReason = ws[XLSX.utils.encode_cell({ r: R, c: 18 })];
 
-      // Skip empty rows (require at least a date)
+      // Skip empty rows (require at least a date cell)
       if (!cellDate) continue;
 
       const dateVal = parseDateValue(cellDate);
       if (!dateVal) continue;  // truly empty / invalid
 
-      const department = cellDept ? String(cellDept.v || '').trim() : '';
-      const requester = cellReq ? String(cellReq.v || '').trim() : '';
+      const department = cellDept ? String(cellDept.v || cellDept.w || '').trim() : '';
+      const location = cellLocation ? String(cellLocation.v || cellLocation.w || '').trim() : '';
+      const requester = cellReq ? String(cellReq.v || cellReq.w || '').trim() : '';
+      const permitNo = cellPermitNo ? String(cellPermitNo.v || cellPermitNo.w || '').trim() : '';
+      const reason = cellReason ? String(cellReason.v || cellReason.w || '').trim() : '';
 
-      // Extract raw fractional values for time math
-      const reportFrac = getRawTimeFraction(cellReport);
-      const permitFrac = getRawTimeFraction(cellPermit);
+      // Crane Name/Type
+      let craneName = cellCrane ? String(cellCrane.v || cellCrane.w || '').trim() : '';
+      if (!craneName) craneName = sheetCraneName;
 
-      // Display strings: use cell.w (Excel-formatted) when available
+      // Display timestamps
       const reportDisplay = getTimeDisplay(cellReport);
+      const permitCreatedDisplay = getTimeDisplay(cellPermitCreated);
       const permitDisplay = getTimeDisplay(cellPermit);
 
-      // Delay = (permitFrac − reportFrac) × 1440 minutes
-      const delayMin = computeDelay(reportFrac, permitFrac);
+      // Hourly Rate
+      let craneRate = null;
+      if (cellRate && cellRate.v !== undefined && cellRate.v !== '' && !isNaN(cellRate.v)) {
+        craneRate = Number(cellRate.v);
+      } else {
+        craneRate = typeof getCraneRate === 'function' ? getCraneRate(craneName) : null;
+      }
 
-      // Hourly Rate and Total Amount
-      const craneRate = typeof getCraneRate === 'function' ? getCraneRate(craneName) : 0;
-      const amount = delayMin > 0 ? (delayMin / 60) * craneRate : 0;
+      // Total Delay Hours (Col Q) - direct ingestion
+      let delayHours = null;
+      let delayMin = null;
+      let delayStr = 'NA';
+      if (cellDelayHours && cellDelayHours.v !== undefined && cellDelayHours.v !== '' && !isNaN(cellDelayHours.v)) {
+        delayHours = Number(cellDelayHours.v);
+        delayMin = Math.round(delayHours * 60);
+        delayStr = formatDelay(delayMin);
+      }
+
+      // Total Delay Cost (Col R) - direct ingestion
+      let amount = null;
+      if (cellDelayCost && cellDelayCost.v !== undefined && cellDelayCost.v !== '' && !isNaN(cellDelayCost.v)) {
+        amount = Number(cellDelayCost.v);
+      }
+
+      if (!craneMap[craneName]) craneMap[craneName] = [];
 
       craneMap[craneName].push({
         craneRate,
@@ -212,11 +248,16 @@ function parseWorkbook(wb) {
         date: dateVal,
         dateStr: formatDate(dateVal),
         department,
+        location,
         requester,
+        permitNo,
+        reason,
         reportTime: reportDisplay,
+        permitCreatedTime: permitCreatedDisplay,
         permitTime: permitDisplay,
+        delayHours,
         delayMin,
-        delayStr: delayMin !== null ? formatDelay(delayMin) : '—'
+        delayStr
       });
     }
   });
@@ -357,7 +398,7 @@ function formatDate(d) {
 }
 
 function formatDelay(mins) {
-  if (mins === null) return '—';
+  if (mins === null || mins === undefined || isNaN(mins)) return 'NA';
   const sign = mins < 0 ? '-' : '';
   const abs = Math.abs(mins);
   const h = Math.floor(abs / 60);
@@ -371,20 +412,21 @@ function formatDelay(mins) {
 // ═══════════════════════════════════════════════
 function showResults() {
   const totalRecords = allRecords.length;
-  const delays = allRecords.map(r => r.delayMin).filter(d => d !== null && d >= 0);
+  const delays = allRecords.map(r => r.delayMin).filter(d => d !== null && d !== undefined && !isNaN(d));
   const totalDelayMin = delays.reduce((a, b) => a + b, 0);
   const avgDelay = delays.length ? Math.round(totalDelayMin / delays.length) : null;
 
   document.getElementById('statTotal').textContent = totalRecords;
   document.getElementById('statAvgDelay').textContent = avgDelay !== null
-    ? formatDelay(avgDelay) : '—';
-  document.getElementById('statTotalDelay').textContent = totalDelayMin > 0
-    ? formatDelay(totalDelayMin) : '—';
+    ? formatDelay(avgDelay) : 'NA';
+  document.getElementById('statTotalDelay').textContent = delays.length > 0
+    ? formatDelay(totalDelayMin) : 'NA';
 
-  const totalAmount = allRecords.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-  document.getElementById('statTotalAmount').textContent = totalAmount > 0
+  const validAmounts = allRecords.map(r => r.amount).filter(a => a !== null && a !== undefined && !isNaN(a));
+  const totalAmount = validAmounts.reduce((acc, curr) => acc + curr, 0);
+  document.getElementById('statTotalAmount').textContent = validAmounts.length > 0
     ? '₹ ' + totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-    : '₹ 0';
+    : 'NA';
 
   statsRow.classList.remove('hidden');
   tableSection.classList.remove('hidden');
@@ -396,7 +438,8 @@ function showResults() {
 
   renderTable(allRecords);
 
-  // Department summary
+  // Dynamic department summary
+  updateCraneTypes(allRecords);
   renderDeptTableHeaders();
   allDeptSummary = buildDeptSummary(allRecords);
   renderDeptTable(allDeptSummary);
@@ -412,7 +455,7 @@ function renderTable(records) {
 
     // Determine delay severity for pill styling
     let pillClass = '';
-    if (r.delayMin !== null) {
+    if (r.delayMin !== null && r.delayMin !== undefined) {
       if (r.delayMin > 480) pillClass = 'red';
       else if (r.delayMin > 240) pillClass = 'orange';
       else if (r.delayMin > 120) pillClass = 'yellow';
@@ -420,18 +463,20 @@ function renderTable(records) {
       else pillClass = 'green';
     }
 
+    const amountDisplay = (r.amount !== null && r.amount !== undefined && !isNaN(r.amount))
+      ? r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : 'NA';
+
     tr.innerHTML = `
       <td>${i + 1}</td>
-      <td>${r.dateStr}</td>
-      <td>${r.craneName}</td>
-      <td>${r.department}</td>
-      <td>${r.requester}</td>
-      <td>${r.reportTime}</td>
-      <td>${r.permitTime}</td>
-      <td title= "30min overhead reduced"><span class="delay-pill ${pillClass}">${r.delayStr}</span></td>
-      <td class="amount-cell">
-        ${r.amount > 0 ? '₹ ' + r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-      </td>
+      <td>${r.dateStr || 'NA'}</td>
+      <td>${r.craneName || 'NA'}</td>
+      <td>${r.department || 'NA'}</td>
+      <td>${r.requester || 'NA'}</td>
+      <td>${r.reportTime || 'NA'}</td>
+      <td>${r.permitTime || 'NA'}</td>
+      <td title="Extracted total delay hours"><span class="delay-pill ${pillClass}">${r.delayStr}</span></td>
+      <td class="amount-cell">${amountDisplay}</td>
     `;
     tableBody.appendChild(tr);
   });
@@ -469,6 +514,21 @@ const CRANE_TYPES = typeof CRANE_RATES !== 'undefined'
     })
   : [];
 
+function updateCraneTypes(records) {
+  const typesSet = new Set(
+    typeof CRANE_RATES !== 'undefined' ? Object.keys(CRANE_RATES) : []
+  );
+  records.forEach(r => {
+    const type = getCraneType(r.craneName);
+    if (type) typesSet.add(type);
+  });
+
+  CRANE_TYPES.length = 0;
+  Array.from(typesSet)
+    .sort((a, b) => (parseInt(b, 10) || 0) - (parseInt(a, 10) || 0))
+    .forEach(t => CRANE_TYPES.push(t));
+}
+
 /**
  * Dynamically render headers for the department summary table based on CRANE_TYPES
  */
@@ -488,15 +548,15 @@ function renderDeptTableHeaders() {
     row1 += `<th colspan="2" class="crane-group">${t}</th>`;
   });
   row1 += `
-      <th rowspan="2" class="dept-total-col">DEPT. TOTAL</th>
+      <th rowspan="2" class="dept-total-col">DEPT. TOTAL (in ₹)</th>
     </tr>
   `;
 
   let row2 = `<tr>`;
   CRANE_TYPES.forEach(() => {
     row2 += `
-      <th class="sub-col">Hrs</th>
-      <th class="sub-col">Amount</th>
+      <th class="sub-col">Delay (Hrs)</th>
+      <th class="sub-col">Amount (in ₹)</th>
     `;
   });
   row2 += `</tr>`;
@@ -511,8 +571,8 @@ function renderDeptTableHeaders() {
 function getCraneType(craneName) {
   if (!craneName) return null;
   // Match digits followed by 'T' (case insensitive)
-  const match = craneName.toUpperCase().match(/(\d+T)/);
-  return match ? match[1] : null;
+  const match = String(craneName).toUpperCase().match(/(\d+T)/);
+  return match ? match[1] : String(craneName).trim();
 }
 
 /**
@@ -530,11 +590,10 @@ function buildDeptSummary(records) {
       deptMap[dept] = {
         department: dept,
         contactCounts: {},  // requester → count (to find most frequent)
-        cranes: {},
-        total: 0
+        cranes: {}
       };
       CRANE_TYPES.forEach(t => {
-        deptMap[dept].cranes[t] = { hours: 0, amount: 0 };
+        deptMap[dept].cranes[t] = { hours: 0, amount: 0, hasHours: false, hasAmount: false };
       });
     }
 
@@ -587,10 +646,11 @@ function renderDeptTable(summary) {
   tbody.innerHTML = '';
 
   let netLoss = 0;
+  let totalNetHours = 0;
 
   summary.forEach((row, i) => {
     const tr = document.createElement('tr');
-    netLoss += row.total;
+    netLoss += row.total || 0;
 
     let cells = `
       <td>${i + 1}</td>
@@ -600,6 +660,9 @@ function renderDeptTable(summary) {
 
     CRANE_TYPES.forEach(type => {
       const c = row.cranes[type];
+      if (c && c.hours) {
+        totalNetHours += c.hours;
+      }
       const hrs = c.hours > 0 ? c.hours.toFixed(2) : '0';
       const amt = c.amount > 0
         ? c.amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -608,7 +671,7 @@ function renderDeptTable(summary) {
       cells += `<td class="amt-cell">${amt}</td>`;
     });
 
-    cells += `<td class="dept-total-cell">₹ ${row.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`;
+    cells += `<td class="dept-total-cell">${row.total ? row.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}</td>`;
 
     tr.innerHTML = cells;
     tbody.appendChild(tr);
@@ -617,9 +680,13 @@ function renderDeptTable(summary) {
   // NET LOSS footer
   const netLossCell = document.getElementById('netLossCell');
   netLossCell.colSpan = 3 + 2 * CRANE_TYPES.length;
+  const formattedHours = totalNetHours.toFixed(2);
   netLossCell.innerHTML = `
-    <span class="net-loss-label">NET LOSS:</span>
-    <span class="net-loss-value">₹ ${netLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+    <span class="net-loss-label">NET LOSS of </span>
+    <span class="net-loss-value">₹${netLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+    <span class="net-loss-label">due to</span>
+    <span class="net-loss-value">${formattedHours}</span>
+    <span class="net-loss-label">Hours total permit delay</span>
   `;
 }
 
@@ -891,14 +958,19 @@ function downloadExcel() {
   // --- Sheet 1: DelayRecords -> delay-records ---
   const sheet1Data = allRecords.map((r, i) => ({
     'SL': i + 1,
-    'Date': r.dateStr,
-    'Crane Name': r.craneName,
-    'Dept. Name': r.department,
-    'Requester Name': r.requester,
-    'Reporting Time': r.reportTime,
-    'Permit Time': r.permitTime,
-    'Delay': r.delayStr,
-    'Amount (₹)': r.amount
+    'Date': r.dateStr || 'NA',
+    'Department': r.department || 'NA',
+    'Location': r.location || 'NA',
+    'User Name': r.requester || 'NA',
+    'Crane Name': r.craneName || 'NA',
+    'Hiring Cost/Hour': (r.craneRate !== null && r.craneRate !== undefined) ? r.craneRate : 'NA',
+    'Permit No.': r.permitNo || 'NA',
+    'Reporting Time': r.reportTime || 'NA',
+    'Permit Created Time': r.permitCreatedTime || 'NA',
+    'Permit Taken Time': r.permitTime || 'NA',
+    'Total Delay Hours': (r.delayHours !== null && r.delayHours !== undefined) ? r.delayHours : 'NA',
+    'Total Delay Cost (₹)': (r.amount !== null && r.amount !== undefined) ? r.amount : 'NA',
+    'Reason for Delay': r.reason || 'NA'
   }));
   const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
 
@@ -926,7 +998,7 @@ function downloadExcel() {
         style.fill = { fgColor: { rgb: 'DDDDDD' } };
         style.alignment.horizontal = 'center';
       }
-      if (C === 8 && R > 0) {
+      if (C === 12 && R > 0 && typeof cell.v === 'number') {
         style.numFmt = '#,##0.00';
       }
 
@@ -936,8 +1008,9 @@ function downloadExcel() {
 
   // Column widths for sheet 1
   ws1['!cols'] = [
-    { wch: 5 }, { wch: 12 }, { wch: 15 }, { wch: 20 },
-    { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+    { wch: 5 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 15 },
+    { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 16 },
+    { wch: 18 }, { wch: 25 }
   ];
 
   XLSX.utils.book_append_sheet(wb, ws1, 'delay-records');
@@ -956,28 +1029,32 @@ function downloadExcel() {
 
   // Table Data
   let netLoss = 0;
+  let hasAnyLoss = false;
   deptSummary.forEach((row, i) => {
-    netLoss += row.total;
+    if (row.total !== null) {
+      netLoss += row.total;
+      hasAnyLoss = true;
+    }
     const rowData = [
       i + 1,
-      row.department,
-      row.contactPerson || ''
+      row.department || 'NA',
+      row.contactPerson || 'NA'
     ];
 
     CRANE_TYPES.forEach(type => {
       const c = row.cranes[type];
-      rowData.push(c.hours > 0 ? parseFloat(c.hours.toFixed(2)) : 0);
-      rowData.push(c.amount > 0 ? parseFloat(c.amount.toFixed(2)) : 0);
+      rowData.push(c.hasHours ? parseFloat(c.hours.toFixed(2)) : 'NA');
+      rowData.push(c.hasAmount ? parseFloat(c.amount.toFixed(2)) : 'NA');
     });
 
-    rowData.push(parseFloat(row.total.toFixed(2)));
+    rowData.push(row.total !== null ? parseFloat(row.total.toFixed(2)) : 'NA');
     sheet2Data.push(rowData);
   });
 
   // Footer / Net Loss
   const footerRow = Array(3 + 2 * CRANE_TYPES.length).fill('');
   footerRow[0] = 'NET LOSS:';
-  footerRow[3 + 2 * CRANE_TYPES.length - 1] = parseFloat(netLoss.toFixed(2));
+  footerRow[3 + 2 * CRANE_TYPES.length - 1] = hasAnyLoss ? parseFloat(netLoss.toFixed(2)) : 'NA';
   sheet2Data.push(footerRow);
 
   const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
