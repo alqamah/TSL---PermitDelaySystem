@@ -1,5 +1,6 @@
 create a data structure object at init from uploaded files and defualt values
 (like attendance system)
+after this, upon extraction merge all cranes from different vendor-wise sheet into common cranes, along with their hourly rates
 
 create master list of all assets: crane names only (55T, 110T etc) to have a clear header name in the 2nd table
 create master list of all depts. (to map it in both tables, uniformly)
