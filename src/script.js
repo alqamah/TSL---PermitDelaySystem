@@ -185,6 +185,9 @@ function parseWorkbook(wb) {
       const department = cellDept ? String(cellDept.v || '').trim() : '';
       const requester = cellReq ? String(cellReq.v || '').trim() : '';
 
+      // Skip if it's a completely empty record (missing department and requester)
+      if (!department && !requester) continue;
+
       // Extract raw fractional values for time math
       const createFrac = getRawTimeFraction(cellCreate);
       const takenFrac = getRawTimeFraction(cellTaken);
@@ -331,6 +334,12 @@ function fractionToTimeString(frac) {
  */
 function computeDelay(createFrac, takenFrac) {
   if (createFrac === null || takenFrac === null) return null;
+  
+  // If taken time is less than create time, assume it rolled over to the next day
+  if (takenFrac < createFrac) {
+    takenFrac += 1;
+  }
+  
   const diffMinutes = Math.round((takenFrac - createFrac) * 1440) - 30;
   return diffMinutes;
 }
@@ -402,10 +411,9 @@ function renderTable(records) {
     // Determine delay severity for pill styling
     let pillClass = '';
     if (r.delayMin !== null) {
-      if (r.delayMin > 480) pillClass = 'red';
-      else if (r.delayMin > 240) pillClass = 'orange';
-      else if (r.delayMin > 120) pillClass = 'yellow';
-      else if (r.delayMin < -30) pillClass = 'grey';
+      if (r.delayMin > 360) pillClass = 'red';
+      else if (r.delayMin > 120) pillClass = 'orange';
+      else if (r.delayMin > 0) pillClass = 'yellow';
       else pillClass = 'green';
     }
 
