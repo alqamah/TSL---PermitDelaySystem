@@ -155,31 +155,26 @@ function parseWorkbook(wb) {
     const ws = wb.Sheets[sheetName];
     if (!ws) return;
 
-    // --- Crane name: prefer cell F2, fallback to sheet name ---
+    // --- Crane name: Sheetname ---
     let craneName = sheetName;
-    const cellF2 = ws['F2'];
-    if (cellF2) {
-      const raw = String(cellF2.v || '').trim();
-      // Format is "CRANE :- 40T-1", extract after ":-"
-      const match = raw.match(/CRANE\s*[:\-]+\s*(.+)/i);
-      craneName = match ? match[1].trim() : (raw || sheetName);
-    }
 
     if (!craneMap[craneName]) craneMap[craneName] = [];
 
-    // --- Walk rows starting from row 4 (index 3) ---
+    // --- Walk rows starting from row 5 (index 4) ---
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-    for (let R = 3; R <= range.e.r; R++) {
+    for (let R = 4; R <= range.e.r; R++) {
       // Column B (1) = Date
       const cellDate = ws[XLSX.utils.encode_cell({ r: R, c: 1 })];
-      // Column D (3) = Department
-      const cellDept = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
+      // Column C (2) = Department
+      const cellDept = ws[XLSX.utils.encode_cell({ r: R, c: 2 })];
       // Column E (4) = Requester Name
       const cellReq = ws[XLSX.utils.encode_cell({ r: R, c: 4 })];
-      // Column G (6) = Crane Reporting Time at Site
-      const cellReport = ws[XLSX.utils.encode_cell({ r: R, c: 6 })];
-      // Column I (8) = Permit Handover Time
-      const cellPermit = ws[XLSX.utils.encode_cell({ r: R, c: 8 })];
+      // Column J (9) = Hiring Cost
+      const cellCost = ws[XLSX.utils.encode_cell({ r: R, c: 9 })];
+      // Column L (11) = Permit Create Time
+      const cellCreate = ws[XLSX.utils.encode_cell({ r: R, c: 11 })];
+      // Column O (14) = Permit Taken Time
+      const cellTaken = ws[XLSX.utils.encode_cell({ r: R, c: 14 })];
 
       // Skip empty rows (require at least a date)
       if (!cellDate) continue;
@@ -191,18 +186,23 @@ function parseWorkbook(wb) {
       const requester = cellReq ? String(cellReq.v || '').trim() : '';
 
       // Extract raw fractional values for time math
-      const reportFrac = getRawTimeFraction(cellReport);
-      const permitFrac = getRawTimeFraction(cellPermit);
+      const createFrac = getRawTimeFraction(cellCreate);
+      const takenFrac = getRawTimeFraction(cellTaken);
 
-      // Display strings: use cell.w (Excel-formatted) when available
-      const reportDisplay = getTimeDisplay(cellReport);
-      const permitDisplay = getTimeDisplay(cellPermit);
+      // Display strings: 24h format
+      const createDisplay = getTimeDisplay(cellCreate);
+      const takenDisplay = getTimeDisplay(cellTaken);
 
-      // Delay = (permitFrac − reportFrac) × 1440 minutes
-      const delayMin = computeDelay(reportFrac, permitFrac);
+      // Delay = Permit Taken Time - Permit Create Time - 30 minutes grace
+      const delayMin = computeDelay(createFrac, takenFrac);
 
       // Hourly Rate and Total Amount
-      const craneRate = typeof getCraneRate === 'function' ? getCraneRate(craneName) : 0;
+      let craneRate = 0;
+      if (cellCost) {
+        if (typeof cellCost.v === 'number') craneRate = cellCost.v;
+        else if (typeof cellCost.v === 'string') craneRate = parseFloat(cellCost.v.replace(/[^\d.-]/g, '')) || 0;
+      }
+      
       const amount = delayMin > 0 ? (delayMin / 60) * craneRate : 0;
 
       craneMap[craneName].push({
@@ -213,8 +213,8 @@ function parseWorkbook(wb) {
         dateStr: formatDate(dateVal),
         department,
         requester,
-        reportTime: reportDisplay,
-        permitTime: permitDisplay,
+        reportTime: createDisplay,
+        permitTime: takenDisplay,
         delayMin,
         delayStr: delayMin !== null ? formatDelay(delayMin) : '—'
       });
@@ -287,18 +287,10 @@ function getRawTimeFraction(cell) {
   return null;
 }
 
-/**
- * Get the display string for a time cell.
- * Prefers cell.w (Excel's formatted text), falls back to
- * converting the raw fraction ourselves.
- */
 function getTimeDisplay(cell) {
   if (!cell) return '';
 
-  // Prefer Excel's own formatted string — guaranteed accurate
-  if (cell.w && cell.w.trim()) return cell.w.trim();
-
-  // Fallback: convert raw fraction to readable string
+  // Always use our formatter to ensure hh:mm 24h format
   const frac = getRawTimeFraction(cell);
   if (frac === null) return '';
   return fractionToTimeString(frac);
@@ -321,16 +313,13 @@ function parseTimeStringToFraction(str) {
 }
 
 /**
- * Convert a fraction of day (0–1) to "h:mm:ss AM/PM" string.
+ * Convert a fraction of day (0–1) to "HH:mm" 24h string.
  */
 function fractionToTimeString(frac) {
   const totalSecs = Math.round(frac * 86400);
   let h = Math.floor(totalSecs / 3600);
   const m = Math.floor((totalSecs % 3600) / 60);
-  const s = totalSecs % 60;
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} ${ampm}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 // ═══════════════════════════════════════════════
@@ -340,9 +329,9 @@ function fractionToTimeString(frac) {
 /**
  * Delay = (permitFrac − reportFrac) × 1440  →  minutes.
  */
-function computeDelay(reportFrac, permitFrac) {
-  if (reportFrac === null || permitFrac === null) return null;
-  const diffMinutes = Math.round((permitFrac - reportFrac) * 1440) - 30;
+function computeDelay(createFrac, takenFrac) {
+  if (createFrac === null || takenFrac === null) return null;
+  const diffMinutes = Math.round((takenFrac - createFrac) * 1440) - 30;
   return diffMinutes;
 }
 
@@ -895,8 +884,8 @@ function downloadExcel() {
     'Crane Name': r.craneName,
     'Dept. Name': r.department,
     'Requester Name': r.requester,
-    'Reporting Time': r.reportTime,
-    'Permit Time': r.permitTime,
+    'Permit Create Time': r.reportTime,
+    'Permit Taken Time': r.permitTime,
     'Delay': r.delayStr,
     'Amount (₹)': r.amount
   }));
