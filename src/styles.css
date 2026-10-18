@@ -282,10 +282,54 @@ td {
 }
 
 .dept-total-col {
-    max-lines: 2;
     text-align: center;
-    padding: 0 20px;
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
     background-color: #ff0000;
+    color: #ffffff;
+    border-left: 2px solid var(--border);
+}
+
+.sub-col {
+    text-align: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: calc(var(--spacing) * 1) var(--spacing);
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dept-total-sub {
+    background-color: #c00000;
+    color: #ffffff;
+    text-align: center;
+}
+
+.hrs-cell {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.amount-cell,
+.amt-cell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.dept-total-cell {
+    font-weight: 800;
+    background-color: #fff9e6;
+    white-space: nowrap;
+}
+
+.dept-total-cell.hrs-cell {
+    border-left: 2px solid var(--border);
+    color: var(--text-primary);
+}
+
+.dept-total-cell.amt-cell {
+    color: #b71c1c;
 }
 
 tr:hover td {
@@ -331,7 +375,7 @@ tr:hover td {
 }
 
 .chart-toggle-group {
-    display: flex;
+    /* display: flex; */
     margin-bottom: var(--spacing);
     gap: 1px;
     background: var(--border);
@@ -419,11 +463,25 @@ tr:hover td {
     }
 }
 
-/* ---------- Download Button ---------- */
+/* ---------- Toolbar Controls & Search Box ---------- */
+.table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 2);
+    margin-bottom: calc(var(--spacing) * 3);
+}
+
+.table-toolbar h2 {
+    margin-bottom: 0;
+}
+
 .toolbar-controls {
     display: flex;
-    gap: var(--spacing);
+    gap: calc(var(--spacing) * 1.5);
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .search-box {
@@ -432,4 +490,134 @@ tr:hover td {
     font-family: var(--font);
     font-size: 0.9rem;
     width: 250px;
+}
+
+/* ---------- Department Summary Header Toggle Button ---------- */
+.dept-toggle-wrapper {
+    display: inline-flex;
+    align-items: center;
+}
+
+.dept-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    padding: 3px;
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    user-select: none;
+    transition: all 0.2s ease;
+    gap: 2px;
+}
+
+.dept-toggle-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.toggle-pill-option {
+    padding: calc(var(--spacing) * 0.75) calc(var(--spacing) * 1.5);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+}
+
+/* Mode: Tonnage active */
+.dept-toggle-btn.mode-tonnage .opt-tonnage {
+    background: var(--border);
+    color: var(--bg-primary);
+    border-color: var(--border);
+}
+
+.dept-toggle-btn.mode-tonnage .opt-vehicle {
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.dept-toggle-btn.mode-tonnage .opt-vehicle:hover {
+    color: var(--text-primary);
+}
+
+/* Mode: Vehicle active */
+.dept-toggle-btn.mode-vehicle .opt-vehicle {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+}
+
+.dept-toggle-btn.mode-vehicle .opt-tonnage {
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.dept-toggle-btn.mode-vehicle .opt-tonnage:hover {
+    color: var(--text-primary);
+}
+
+/* ---------- Crane Summary Row ---------- */
+.crane-summary-row {
+    background: #ededed;
+    font-weight: 800;
+    border-top: 2px solid var(--border);
+    border-bottom: 2px solid var(--border);
+}
+
+.crane-summary-label {
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-left: calc(var(--spacing) * 1.5);
+    background: #e0e0e0;
+    color: var(--text-primary);
+}
+
+.crane-summary-hrs {
+    text-align: center;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.crane-summary-amt {
+    text-align: right;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.crane-summary-row .dept-total-cell {
+    background: #ffe082;
+    font-weight: 900;
+}
+
+/* ---------- Net Loss Footer Cell ---------- */
+.net-loss-row {
+    background: var(--bg-secondary);
+    font-weight: 800;
+}
+
+#netLossCell {
+    text-align: left;
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
+    font-size: 0.95rem;
+    border-top: 2px solid var(--border);
+}
+
+.net-loss-label {
+    margin-right: var(--spacing);
+    color: var(--text-primary);
+    text-transform: uppercase;
+    font-weight: 900;
+}
+
+.net-loss-value {
+    color: #ff0000;
+    font-weight: 900;
+    white-space: nowrap;
 }

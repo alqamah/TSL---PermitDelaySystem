@@ -4,3 +4,7 @@ after this, upon extraction merge all cranes from different vendor-wise sheet in
 
 create master list of all assets: crane names only (55T, 110T etc) to have a clear header name in the 2nd table
 create master list of all depts. (to map it in both tables, uniformly)
+
+
+new (18/10)
+to allow the tables to be scrolled horizontally (for mouse), when the cursor crosses the table edge, turn it to corresponding size arrow so that on clicking it the table data gets scrolled accordingly

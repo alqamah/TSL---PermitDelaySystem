@@ -23,10 +23,13 @@ const searchInput = document.getElementById('searchInput');
 const deptSearchInput = document.getElementById('deptSearchInput');
 const downloadbtn = document.getElementById('downloadbtn');
 const deptTableBody = document.getElementById('deptTableBody');
+const toggleDeptHeadersBtn = document.getElementById('toggleDeptHeadersBtn');
 
 // ─── State ───────────────────────────────────
-let allRecords = [];      // master flat list of parsed rows
-let allDeptSummary = [];  // master list of parsed department summary rows
+let allRecords = [];            // master flat list of parsed rows
+let allDeptSummary = [];        // master list of parsed department summary rows
+let currentDeptHeaderMode = 'tonnage'; // 'tonnage' (persistent) | 'vehicle' (sheet-mapped)
+let detectedSheetVehicles = []; // unique vehicle names extracted from input sheet names
 
 // ─── File Upload Events ──────────────────────
 browseBtn.addEventListener('click', (e) => {
@@ -73,15 +76,23 @@ searchInput.addEventListener('input', () => {
 });
 
 deptSearchInput.addEventListener('input', () => {
-  const term = deptSearchInput.value.toLowerCase().trim();
-  const filtered = term
-    ? allDeptSummary.filter(d =>
-      d.department.toLowerCase().includes(term) ||
-      d.contactPerson.toLowerCase().includes(term)
-    )
-    : allDeptSummary;
-  renderDeptTable(filtered);
+  filterAndRenderDeptTable();
 });
+
+// Toggle button event listener
+if (toggleDeptHeadersBtn) {
+  toggleDeptHeadersBtn.addEventListener('click', (e) => {
+    const optVeh = e.target.closest('#optVehicle');
+    const optTon = e.target.closest('#optTonnage');
+    if (optVeh) {
+      setDeptHeaderMode('vehicle');
+    } else if (optTon) {
+      setDeptHeaderMode('tonnage');
+    } else {
+      toggleDeptHeaderMode();
+    }
+  });
+}
 
 // ═══════════════════════════════════════════════
 //  CORE:  Read Excel → Parse Sheets → Build Data
@@ -102,9 +113,9 @@ async function handleFiles(fileList) {
 
   // 2. Read and parse all files in parallel
   const filesArray = Array.from(fileList);
-  const allParsedRecords = [];
+  const fileResults = new Array(filesArray.length);
 
-  const readPromises = filesArray.map(file => {
+  const readPromises = filesArray.map((file, fileIdx) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
 
@@ -112,20 +123,20 @@ async function handleFiles(fileList) {
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-          const records = parseWorkbook(workbook);
-          allParsedRecords.push(...records);
+          const parsed = parseWorkbook(workbook);
+          fileResults[fileIdx] = parsed;
           resolve();
         } catch (err) {
           console.error(`Error parsing ${file.name}:`, err);
-          // Don't fail the whole promise if one file is bad? 
-          // For now, let's just resolve to continue with the others.
+          fileResults[fileIdx] = null;
           resolve();
         }
       };
 
       reader.onerror = (err) => {
         console.error(`FileReader error on ${file.name}:`, err);
-        resolve(); // Continue with others
+        fileResults[fileIdx] = null;
+        resolve();
       };
 
       reader.readAsArrayBuffer(file);
@@ -136,7 +147,33 @@ async function handleFiles(fileList) {
   await Promise.all(readPromises);
 
   // 4. Update the global state and UI
-  // Combine with existing or replace? User's "update" usually means replace current view.
+  const allParsedRecords = [];
+  detectedSheetVehicles = [];
+
+  fileResults.forEach(res => {
+    if (!res) return;
+    const records = Array.isArray(res) ? res : (res.records || []);
+    const vehicles = Array.isArray(res) ? [] : (res.vehicles || []);
+
+    if (records) allParsedRecords.push(...records);
+    if (vehicles) {
+      vehicles.forEach(v => {
+        if (!detectedSheetVehicles.includes(v)) {
+          detectedSheetVehicles.push(v);
+        }
+      });
+    }
+  });
+
+  // Fallback: collect unique crane names from records if vehicles array is empty
+  if (detectedSheetVehicles.length === 0 && allParsedRecords.length > 0) {
+    allParsedRecords.forEach(r => {
+      if (r.craneName && !detectedSheetVehicles.includes(r.craneName)) {
+        detectedSheetVehicles.push(r.craneName);
+      }
+    });
+  }
+
   allRecords = allParsedRecords;
   allRecords.sort((a, b) => a.date - b.date);
 
@@ -150,6 +187,7 @@ async function handleFiles(fileList) {
 // ─── Parse every sheet in the workbook ────────
 function parseWorkbook(wb) {
   const craneMap = {};  // craneName → [ records ]
+  const detectedVehicles = [];
 
   wb.SheetNames.forEach((sheetName) => {
     const ws = wb.Sheets[sheetName];
@@ -205,6 +243,9 @@ function parseWorkbook(wb) {
         if (typeof cellCost.v === 'number') craneRate = cellCost.v;
         else if (typeof cellCost.v === 'string') craneRate = parseFloat(cellCost.v.replace(/[^\d.-]/g, '')) || 0;
       }
+      if (!craneRate) {
+        craneRate = getCraneRate(craneName);
+      }
       
       const amount = delayMin > 0 ? (delayMin / 60) * craneRate : 0;
 
@@ -222,13 +263,18 @@ function parseWorkbook(wb) {
         delayStr: delayMin !== null ? formatDelay(delayMin) : '—'
       });
     }
+
+    // If this sheet has parsed records, record it as a valid vehicle
+    if (craneMap[craneName] && craneMap[craneName].length > 0) {
+      detectedVehicles.push(craneName);
+    }
   });
 
   // Flatten to a single sorted array
   const flat = [];
   Object.values(craneMap).forEach(arr => flat.push(...arr));
   flat.sort((a, b) => a.date - b.date);
-  return flat;
+  return { records: flat, vehicles: detectedVehicles };
 }
 
 // ═══════════════════════════════════════════════
@@ -381,8 +427,8 @@ function showResults() {
 
   const totalAmount = allRecords.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   document.getElementById('statTotalAmount').textContent = totalAmount > 0
-    ? '₹ ' + totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-    : '₹ 0';
+    ? '₹' + totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+    : '₹0';
 
   statsRow.classList.remove('hidden');
   tableSection.classList.remove('hidden');
@@ -395,8 +441,9 @@ function showResults() {
   renderTable(allRecords);
 
   // Department summary
+  updateToggleUI();
   renderDeptTableHeaders();
-  allDeptSummary = buildDeptSummary(allRecords);
+  allDeptSummary = buildDeptSummary(allRecords, currentDeptHeaderMode);
   renderDeptTable(allDeptSummary);
   renderDeptChart(allDeptSummary);
   document.getElementById('deptSection').classList.remove('hidden');
@@ -427,7 +474,7 @@ function renderTable(records) {
       <td>${r.permitTime}</td>
       <td title= "30min overhead reduced"><span class="delay-pill ${pillClass}">${r.delayStr}</span></td>
       <td class="amount-cell">
-        ${r.amount > 0 ? '₹ ' + r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+        ${r.amount > 0 ? '₹' + r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
       </td>
     `;
     tableBody.appendChild(tr);
@@ -467,7 +514,19 @@ const CRANE_TYPES = typeof CRANE_RATES !== 'undefined'
   : [];
 
 /**
- * Dynamically render headers for the department summary table based on CRANE_TYPES
+ * Returns active column list for the department summary table:
+ * If in 'vehicle' mode, returns detectedSheetVehicles extracted from input file sheets.
+ * Otherwise returns CRANE_TYPES from persistent data.
+ */
+function getActiveDeptColumns(mode = currentDeptHeaderMode) {
+  if (mode === 'vehicle' && detectedSheetVehicles && detectedSheetVehicles.length > 0) {
+    return detectedSheetVehicles;
+  }
+  return CRANE_TYPES;
+}
+
+/**
+ * Dynamically render headers for the department summary table based on active columns.
  */
 function renderDeptTableHeaders() {
   const deptTable = document.getElementById('deptTable');
@@ -475,27 +534,33 @@ function renderDeptTableHeaders() {
   const thead = deptTable.querySelector('thead');
   if (!thead) return;
 
+  const cols = getActiveDeptColumns();
+
   let row1 = `
     <tr>
       <th rowspan="2">SL</th>
       <th rowspan="2">DEPARTMENT</th>
       <th rowspan="2">CONTACT PERSON</th>
   `;
-  CRANE_TYPES.forEach(t => {
+  cols.forEach(t => {
     row1 += `<th colspan="2" class="crane-group">${t}</th>`;
   });
   row1 += `
-      <th rowspan="2" class="dept-total-col">DEPT. TOTAL</th>
+      <th colspan="2" class="dept-total-col">DEPT. TOTAL</th>
     </tr>
   `;
 
   let row2 = `<tr>`;
-  CRANE_TYPES.forEach(() => {
+  cols.forEach(() => {
     row2 += `
-      <th class="sub-col">Hrs</th>
-      <th class="sub-col">Amount</th>
+      <th class="sub-col">Delay (hh)</th>
+      <th class="sub-col">Amount (₹)</th>
     `;
   });
+  row2 += `
+      <th class="sub-col dept-total-sub">Delay (hh)</th>
+      <th class="sub-col dept-total-sub">Amount (₹)</th>
+  `;
   row2 += `</tr>`;
 
   thead.innerHTML = row1 + row2;
@@ -514,10 +579,14 @@ function getCraneType(craneName) {
 
 /**
  * Build department summary from all records.
+ * Supports grouping by persistent CRANE_TYPES or directly by sheet vehicle names.
+ * Computes both total amount and total delay hours for each department.
  * Returns an array of dept objects sorted by DEPT. TOTAL descending.
  */
-function buildDeptSummary(records) {
-  const deptMap = {}; // dept → { contact, cranes: { type → { hours, amount } }, total }
+function buildDeptSummary(records, mode = currentDeptHeaderMode) {
+  const isVehicleMode = mode === 'vehicle' && detectedSheetVehicles && detectedSheetVehicles.length > 0;
+  const cols = getActiveDeptColumns(mode);
+  const deptMap = {}; // dept → { contact, cranes: { col → { hours, amount } }, total, totalHours }
 
   records.forEach(r => {
     if (!r.department) return;
@@ -528,9 +597,10 @@ function buildDeptSummary(records) {
         department: dept,
         contactCounts: {},  // requester → count (to find most frequent)
         cranes: {},
-        total: 0
+        total: 0,
+        totalHours: 0
       };
-      CRANE_TYPES.forEach(t => {
+      cols.forEach(t => {
         deptMap[dept].cranes[t] = { hours: 0, amount: 0 };
       });
     }
@@ -542,12 +612,13 @@ function buildDeptSummary(records) {
       entry.contactCounts[r.requester] = (entry.contactCounts[r.requester] || 0) + 1;
     }
 
-    // Aggregate by crane type
-    const craneType = getCraneType(r.craneName);
-    if (craneType && entry.cranes[craneType]) {
+    // In vehicle mode, map directly from craneName (sheet name)
+    // In tonnage mode, map from getCraneType(craneName)
+    const colKey = isVehicleMode ? r.craneName : getCraneType(r.craneName);
+    if (colKey && entry.cranes[colKey]) {
       const delayHrs = (r.delayMin !== null && r.delayMin > 0) ? r.delayMin / 60 : 0;
-      entry.cranes[craneType].hours += delayHrs;
-      entry.cranes[craneType].amount += (r.amount || 0);
+      entry.cranes[colKey].hours += delayHrs;
+      entry.cranes[colKey].amount += (r.amount || 0);
     }
   });
 
@@ -559,15 +630,20 @@ function buildDeptSummary(records) {
       if (count > maxCount) { maxCount = count; contactPerson = name; }
     }
 
-    // Dept total = sum of all crane amounts
+    // Dept total amount and delay hours in active columns
     let deptTotal = 0;
-    CRANE_TYPES.forEach(t => { deptTotal += entry.cranes[t].amount; });
+    let deptTotalHours = 0;
+    cols.forEach(t => {
+      deptTotal += (entry.cranes[t]?.amount || 0);
+      deptTotalHours += (entry.cranes[t]?.hours || 0);
+    });
 
     return {
       department: entry.department,
       contactPerson,
       cranes: entry.cranes,
-      total: deptTotal
+      total: deptTotal,
+      totalHours: deptTotalHours
     };
   });
 
@@ -577,17 +653,27 @@ function buildDeptSummary(records) {
 }
 
 /**
- * Render the department summary table.
+ * Render the department summary table with crane summary row and left-shifted Net Loss.
  */
 function renderDeptTable(summary) {
   const tbody = document.getElementById('deptTableBody');
   tbody.innerHTML = '';
 
+  const cols = getActiveDeptColumns();
+
+  // Track crane-wise totals
+  const craneTotals = {};
+  cols.forEach(type => {
+    craneTotals[type] = { hours: 0, amount: 0 };
+  });
+
+  let grandTotalHours = 0;
   let netLoss = 0;
 
   summary.forEach((row, i) => {
     const tr = document.createElement('tr');
     netLoss += row.total;
+    grandTotalHours += (row.totalHours || 0);
 
     let cells = `
       <td>${i + 1}</td>
@@ -595,8 +681,11 @@ function renderDeptTable(summary) {
       <td>${row.contactPerson}</td>
     `;
 
-    CRANE_TYPES.forEach(type => {
-      const c = row.cranes[type];
+    cols.forEach(type => {
+      const c = row.cranes[type] || { hours: 0, amount: 0 };
+      craneTotals[type].hours += c.hours;
+      craneTotals[type].amount += c.amount;
+
       const hrs = c.hours > 0 ? c.hours.toFixed(2) : '0';
       const amt = c.amount > 0
         ? c.amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -605,19 +694,112 @@ function renderDeptTable(summary) {
       cells += `<td class="amt-cell">${amt}</td>`;
     });
 
-    cells += `<td class="dept-total-cell">₹ ${row.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`;
+    const deptHrs = row.totalHours > 0 ? row.totalHours.toFixed(2) : '0';
+    const deptAmt = row.total > 0
+      ? '₹' + row.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : '₹0';
+
+    cells += `<td class="dept-total-cell hrs-cell">${deptHrs}</td>`;
+    cells += `<td class="dept-total-cell amt-cell">${deptAmt}</td>`;
 
     tr.innerHTML = cells;
     tbody.appendChild(tr);
   });
 
-  // NET LOSS footer
-  const netLossCell = document.getElementById('netLossCell');
-  netLossCell.colSpan = 3 + 2 * CRANE_TYPES.length;
-  netLossCell.innerHTML = `
-    <span class="net-loss-label">NET LOSS:</span>
-    <span class="net-loss-value">₹ ${netLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-  `;
+  // Footer: Crane-wise summary row + Net Loss shifted to left
+  const deptTable = document.getElementById('deptTable');
+  let tfoot = document.getElementById('deptTableFoot') || (deptTable ? deptTable.querySelector('tfoot') : null);
+  if (!tfoot && deptTable) {
+    tfoot = document.createElement('tfoot');
+    tfoot.id = 'deptTableFoot';
+    deptTable.appendChild(tfoot);
+  }
+
+  if (tfoot) {
+    let craneSummaryCells = '';
+    cols.forEach(type => {
+      const ct = craneTotals[type];
+      const hrs = ct.hours > 0 ? ct.hours.toFixed(2) : '0';
+      const amt = ct.amount > 0
+        ? '₹' + ct.amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+        : '0';
+      craneSummaryCells += `<td class="hrs-cell crane-summary-hrs">${hrs}</td>`;
+      craneSummaryCells += `<td class="amt-cell crane-summary-amt">${amt}</td>`;
+    });
+
+    const grandHrsDisplay = grandTotalHours > 0 ? grandTotalHours.toFixed(2) : '0';
+    const netLossDisplay = '₹' + netLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const totalColsCount = 3 + 2 * cols.length + 2;
+
+    tfoot.innerHTML = `
+      <tr class="crane-summary-row" id="craneSummaryRow">
+        <td colspan="3" class="crane-summary-label">TOTAL</td>
+        ${craneSummaryCells}
+        <td class="dept-total-cell hrs-cell crane-summary-hrs">${grandHrsDisplay}</td>
+        <td class="dept-total-cell amt-cell crane-summary-amt">${netLossDisplay}</td>
+      </tr>
+      <tr class="net-loss-row">
+        <td colspan="${totalColsCount}" id="netLossCell">
+          <span class="net-loss-label">NET LOSS:</span>
+          <span class="net-loss-value">${netLossDisplay}</span>
+        </td>
+      </tr>
+    `;
+  }
+}
+
+// ─── Header Mapping Mode Controls ─────────────────
+function setDeptHeaderMode(mode) {
+  if (currentDeptHeaderMode === mode) return;
+  currentDeptHeaderMode = mode;
+  updateToggleUI();
+  updateDeptSummaryView();
+}
+
+function toggleDeptHeaderMode() {
+  const nextMode = currentDeptHeaderMode === 'tonnage' ? 'vehicle' : 'tonnage';
+  setDeptHeaderMode(nextMode);
+}
+
+function updateToggleUI() {
+  const toggleBtn = document.getElementById('toggleDeptHeadersBtn');
+  const optVehicle = document.getElementById('optVehicle');
+  if (!toggleBtn) return;
+
+  if (optVehicle && detectedSheetVehicles.length > 0) {
+    optVehicle.textContent = `Vehicle Names (${detectedSheetVehicles.length} Sheets)`;
+  } else if (optVehicle) {
+    optVehicle.textContent = 'Vehicle Names (Sheets)';
+  }
+
+  if (currentDeptHeaderMode === 'vehicle') {
+    toggleBtn.classList.remove('mode-tonnage');
+    toggleBtn.classList.add('mode-vehicle');
+    toggleBtn.setAttribute('aria-pressed', 'true');
+  } else {
+    toggleBtn.classList.remove('mode-vehicle');
+    toggleBtn.classList.add('mode-tonnage');
+    toggleBtn.setAttribute('aria-pressed', 'false');
+  }
+}
+
+function updateDeptSummaryView() {
+  if (!allRecords || allRecords.length === 0) return;
+  renderDeptTableHeaders();
+  allDeptSummary = buildDeptSummary(allRecords, currentDeptHeaderMode);
+  filterAndRenderDeptTable();
+  renderDeptChart(allDeptSummary);
+}
+
+function filterAndRenderDeptTable() {
+  const term = deptSearchInput ? deptSearchInput.value.toLowerCase().trim() : '';
+  const filtered = term
+    ? allDeptSummary.filter(d =>
+      d.department.toLowerCase().includes(term) ||
+      (d.contactPerson && d.contactPerson.toLowerCase().includes(term))
+    )
+    : allDeptSummary;
+  renderDeptTable(filtered);
 }
 
 // ═══════════════════════════════════════════════
@@ -654,11 +836,7 @@ function renderDeptChart(summary) {
 function renderBarChart(summary, labels) {
   destroyChart();
 
-  const totalHours = summary.map(d => {
-    let hrs = 0;
-    CRANE_TYPES.forEach(t => { hrs += d.cranes[t].hours; });
-    return parseFloat(hrs.toFixed(2));
-  });
+  const totalHours = summary.map(d => parseFloat((d.totalHours !== undefined ? d.totalHours : 0).toFixed(2)));
 
   const totalAmounts = summary.map(d => Math.round(d.total));
 
@@ -719,7 +897,7 @@ function renderBarChart(summary, labels) {
             },
             label: function (ctx) {
               if (ctx.dataset.yAxisID === 'yAmount') {
-                return `  Amount: ₹ ${ctx.parsed.y.toLocaleString('en-IN')}`;
+                return `  Amount: ₹${ctx.parsed.y.toLocaleString('en-IN')}`;
               }
               return `  Hours: ${ctx.parsed.y}h`;
             }
@@ -832,7 +1010,7 @@ function renderDoughnutChart(summary, labels) {
             label: function (ctx) {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
-              return `  ₹ ${ctx.parsed.toLocaleString('en-IN')}  (${pct}%)`;
+              return `  ₹${ctx.parsed.toLocaleString('en-IN')}  (${pct}%)`;
             }
           }
         }
@@ -940,47 +1118,76 @@ function downloadExcel() {
   XLSX.utils.book_append_sheet(wb, ws1, 'delay-records');
 
   // --- Sheet 2: Department Permit Delay Summary ---
-  const deptSummary = buildDeptSummary(allRecords);
+  const activeCols = getActiveDeptColumns();
+  const deptSummary = buildDeptSummary(allRecords, currentDeptHeaderMode);
   const sheet2Data = [];
 
-  // Table Headers (dynamically built from CRANE_TYPES)
+  // Table Headers (dynamically built from activeCols)
   const headers = ['S.NO', 'DEPARTMENT', 'CONTACT PERSON'];
-  CRANE_TYPES.forEach(type => {
-    headers.push(`${type} Hrs`, `${type} Amount`);
+  activeCols.forEach(type => {
+    headers.push(`${type} Delay (hh)`, `${type} Amount (₹)`);
   });
-  headers.push('DEPT. TOTAL');
+  headers.push('DEPT. TOTAL Delay (hh)', 'DEPT. TOTAL Amount (₹)');
   sheet2Data.push(headers);
 
-  // Table Data
+  // Track crane-wise totals
+  const craneTotals = {};
+  activeCols.forEach(type => {
+    craneTotals[type] = { hours: 0, amount: 0 };
+  });
+
+  let grandTotalHours = 0;
   let netLoss = 0;
+
+  // Table Data
   deptSummary.forEach((row, i) => {
     netLoss += row.total;
+    grandTotalHours += (row.totalHours || 0);
+
     const rowData = [
       i + 1,
       row.department,
       row.contactPerson || ''
     ];
 
-    CRANE_TYPES.forEach(type => {
-      const c = row.cranes[type];
+    activeCols.forEach(type => {
+      const c = row.cranes[type] || { hours: 0, amount: 0 };
+      craneTotals[type].hours += c.hours;
+      craneTotals[type].amount += c.amount;
+
       rowData.push(c.hours > 0 ? parseFloat(c.hours.toFixed(2)) : 0);
       rowData.push(c.amount > 0 ? parseFloat(c.amount.toFixed(2)) : 0);
     });
 
+    rowData.push(row.totalHours > 0 ? parseFloat(row.totalHours.toFixed(2)) : 0);
     rowData.push(parseFloat(row.total.toFixed(2)));
     sheet2Data.push(rowData);
   });
 
-  // Footer / Net Loss
-  const footerRow = Array(3 + 2 * CRANE_TYPES.length).fill('');
-  footerRow[0] = 'NET LOSS:';
-  footerRow[3 + 2 * CRANE_TYPES.length - 1] = parseFloat(netLoss.toFixed(2));
+  // Crane-wise Summary Row
+  const summaryRow = ['TOTAL (CRANEWISE)', '', ''];
+  activeCols.forEach(type => {
+    const ct = craneTotals[type];
+    summaryRow.push(ct.hours > 0 ? parseFloat(ct.hours.toFixed(2)) : 0);
+    summaryRow.push(ct.amount > 0 ? parseFloat(ct.amount.toFixed(2)) : 0);
+  });
+  summaryRow.push(grandTotalHours > 0 ? parseFloat(grandTotalHours.toFixed(2)) : 0);
+  summaryRow.push(parseFloat(netLoss.toFixed(2)));
+  sheet2Data.push(summaryRow);
+
+  // Footer / Net Loss (Left-aligned)
+  const totalColsCount = 3 + 2 * activeCols.length + 2;
+  const footerRow = Array(totalColsCount).fill('');
+  footerRow[0] = `NET LOSS: ₹${netLoss.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   sheet2Data.push(footerRow);
 
   const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
 
   // Style Sheet 2
   const range2 = XLSX.utils.decode_range(ws2['!ref']);
+  const summaryRowIdx = range2.e.r - 1;
+  const netLossRowIdx = range2.e.r;
+
   for (let R = range2.s.r; R <= range2.e.r; ++R) {
     for (let C = range2.s.c; C <= range2.e.c; ++C) {
       const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
@@ -1006,17 +1213,31 @@ function downloadExcel() {
         // Header row
         style.font.bold = true;
         style.fill = { fgColor: { rgb: 'DDDDDD' } };
-      } else if (R === range2.e.r) {
-        // Net Loss row
+      } else if (R === netLossRowIdx) {
+        // Net Loss row (shifted to left)
         style.font.bold = true;
         style.font.color = { rgb: 'FFFFFF' };
         style.fill = { fgColor: { rgb: 'C00000' } }; // Red
-
+        style.alignment.horizontal = 'left';
+      } else if (R === summaryRowIdx) {
+        // Crane Summary row
+        style.font.bold = true;
+        style.fill = { fgColor: { rgb: 'EAEAEA' } };
+        if (C === 0) {
+          style.alignment.horizontal = 'center';
+        } else if (C >= 3) {
+          if (C % 2 === 1) {
+            // Hours / Delay
+            style.numFmt = '0.00';
+            style.alignment.horizontal = 'center';
+          } else {
+            // Amount
+            style.numFmt = '#,##0.00';
+            style.alignment.horizontal = 'right';
+          }
+        }
         if (C === range2.e.c) {
-          style.numFmt = '#,##0.00';
-          style.alignment.horizontal = 'right';
-        } else if (C === 0) {
-          style.alignment.horizontal = 'right';
+          style.fill = { fgColor: { rgb: 'FFD966' } };
         }
       } else {
         // Data rows
@@ -1025,9 +1246,13 @@ function downloadExcel() {
         }
 
         // Match numbers formatting
-        if (C >= 3 && C < range2.e.c) {
-          if (C % 2 === 0) {
-            // Amount columns: index is even
+        if (C >= 3) {
+          if (C % 2 === 1) {
+            // Delay (hh) columns: index is odd
+            style.numFmt = '0.00';
+            style.alignment.horizontal = 'center';
+          } else {
+            // Amount (₹) columns: index is even
             style.numFmt = '#,##0.00';
             if (cell.v === 0) {
               cell.t = 's';
@@ -1039,14 +1264,14 @@ function downloadExcel() {
           }
         }
 
-        // FFD966 is the gold background from image, applied to Total col.
+        // Gold background for Total amount column
         if (C === range2.e.c) {
           style.fill = { fgColor: { rgb: 'FFD966' } };
           style.numFmt = '#,##0.00';
           style.alignment.horizontal = 'right';
         }
 
-        // FFF2CC is the pale yellow, applied to Col 4 (first amount col) to recreate screenshot feel.
+        // Pale yellow applied to Col 4 (first amount col)
         if (C === 4) {
           style.fill = { fgColor: { rgb: 'FFF2CC' } };
         }
@@ -1056,24 +1281,30 @@ function downloadExcel() {
     }
   }
 
-  // Merge the "NET LOSS:" cells
+  // Merges
   if (!ws2['!merges']) ws2['!merges'] = [];
+  // Merge TOTAL across first 3 columns in summary row
   ws2['!merges'].push({
-    s: { r: range2.e.r, c: 0 },
-    e: { r: range2.e.r, c: 3 + 2 * CRANE_TYPES.length - 1 }
+    s: { r: summaryRowIdx, c: 0 },
+    e: { r: summaryRowIdx, c: 2 }
+  });
+  // Merge NET LOSS across all columns
+  ws2['!merges'].push({
+    s: { r: netLossRowIdx, c: 0 },
+    e: { r: netLossRowIdx, c: totalColsCount - 1 }
   });
 
   // Basic styling (column widths)
-  const cols = [
+  const colsWidth = [
     { wch: 6 },  // SL
     { wch: 25 }, // Dept
     { wch: 15 }  // Contact
   ];
-  CRANE_TYPES.forEach(() => {
-    cols.push({ wch: 8 }, { wch: 12 });
+  activeCols.forEach(() => {
+    colsWidth.push({ wch: 11 }, { wch: 14 });
   });
-  cols.push({ wch: 15 }); // Total
-  ws2['!cols'] = cols;
+  colsWidth.push({ wch: 14 }, { wch: 16 }); // Total Delay, Total Amount
+  ws2['!cols'] = colsWidth;
 
   XLSX.utils.book_append_sheet(wb, ws2, 'Department Permit Delay Summary');
 

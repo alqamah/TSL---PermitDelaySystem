@@ -78,7 +78,7 @@
             </div>
             <div class="stat-card danger">
                 <span class="stat-label">Total Delay Cost</span>
-                <span class="stat-value" id="statTotalAmount">₹ 0</span>
+                <span class="stat-value" id="statTotalAmount">₹0</span>
             </div>
         </section>
 
@@ -115,6 +115,12 @@
             <div class="table-toolbar">
                 <h2>Department Permit Delay Summary</h2>
                 <div class="toolbar-controls">
+                    <div class="dept-toggle-wrapper">
+                        <button type="button" id="toggleDeptHeadersBtn" class="dept-toggle-btn mode-tonnage" aria-pressed="false" title="Toggle column headers between Persistent Tonnage (450T...) and Input Sheet Vehicle Names">
+                            <span class="toggle-pill-option opt-tonnage" id="optTonnage">Tonnage (Persistent)</span>
+                            <span class="toggle-pill-option opt-vehicle" id="optVehicle">Vehicle Names (Sheets)</span>
+                        </button>
+                    </div>
                     <input type="text" id="deptSearchInput" class="search-box" placeholder="Search departments…" />
                 </div>
             </div>
@@ -132,27 +138,30 @@
                             <th colspan="2" class="crane-group">55T</th>
                             <th colspan="2" class="crane-group">40T</th>
 
-                            <th rowspan="2" class="dept-total-col">DEPT. TOTAL</th>
+                            <th colspan="2" class="dept-total-col">DEPT. TOTAL</th>
                         </tr>
                         <tr>
-                            <th class="sub-col">Hrs</th>
-                            <th class="sub-col">Amount</th>
-                            <th class="sub-col">Hrs</th>
-                            <th class="sub-col">Amount</th>
-                            <th class="sub-col">Hrs</th>
-                            <th class="sub-col">Amount</th>
-                            <th class="sub-col">Hrs</th>
-                            <th class="sub-col">Amount</th>
-                            <th class="sub-col">Hrs</th>
-                            <th class="sub-col">Amount</th>
-                            <th class="sub-col">Hrs</th>
-                            <th class="sub-col">Amount</th>
+                            <th class="sub-col">Delay (hh)</th>
+                            <th class="sub-col">Amount (₹)</th>
+                            <th class="sub-col">Delay (hh)</th>
+                            <th class="sub-col">Amount (₹)</th>
+                            <th class="sub-col">Delay (hh)</th>
+                            <th class="sub-col">Amount (₹)</th>
+                            <th class="sub-col">Delay (hh)</th>
+                            <th class="sub-col">Amount (₹)</th>
+                            <th class="sub-col">Delay (hh)</th>
+                            <th class="sub-col">Amount (₹)</th>
+                            <th class="sub-col">Delay (hh)</th>
+                            <th class="sub-col">Amount (₹)</th>
+                            <th class="sub-col dept-total-sub">Delay (hh)</th>
+                            <th class="sub-col dept-total-sub">Amount (₹)</th>
                         </tr>
                     </thead>
                     <tbody id="deptTableBody"></tbody>
-                    <tfoot>
+                    <tfoot id="deptTableFoot">
+                        <tr class="crane-summary-row" id="craneSummaryRow"></tr>
                         <tr class="net-loss-row">
-                            <td colspan="15" id="netLossCell"></td>
+                            <td colspan="17" id="netLossCell"></td>
                         </tr>
                     </tfoot>
                 </table>
