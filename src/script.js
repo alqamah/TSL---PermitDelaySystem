@@ -246,7 +246,7 @@ function parseWorkbook(wb) {
       if (!craneRate) {
         craneRate = getCraneRate(craneName);
       }
-      
+
       const amount = delayMin > 0 ? (delayMin / 60) * craneRate : 0;
 
       craneMap[craneName].push({
@@ -380,12 +380,12 @@ function fractionToTimeString(frac) {
  */
 function computeDelay(createFrac, takenFrac) {
   if (createFrac === null || takenFrac === null) return null;
-  
+
   // If taken time is less than create time, assume it rolled over to the next day
   if (takenFrac < createFrac) {
     takenFrac += 1;
   }
-  
+
   const diffMinutes = Math.round((takenFrac - createFrac) * 1440) - 30;
   return diffMinutes;
 }
@@ -507,10 +507,10 @@ function getCraneRate(name) {
 /** Crane types to show in the summary (column order) derived dynamically from CRANE_RATES */
 const CRANE_TYPES = typeof CRANE_RATES !== 'undefined'
   ? Object.keys(CRANE_RATES).sort((a, b) => {
-      const numA = parseInt(a, 10) || 0;
-      const numB = parseInt(b, 10) || 0;
-      return numB - numA;
-    })
+    const numA = parseInt(a, 10) || 0;
+    const numB = parseInt(b, 10) || 0;
+    return numB - numA;
+  })
   : [];
 
 /**
@@ -733,7 +733,7 @@ function renderDeptTable(summary) {
 
     tfoot.innerHTML = `
       <tr class="crane-summary-row" id="craneSummaryRow">
-        <td colspan="3" class="crane-summary-label">TOTAL</td>
+        <td colspan="3" class="crane-summary-label">TOTAL (CRANE/VEHICLE-WISE)</td>
         ${craneSummaryCells}
         <td class="dept-total-cell hrs-cell crane-summary-hrs">${grandHrsDisplay}</td>
         <td class="dept-total-cell amt-cell crane-summary-amt">${netLossDisplay}</td>
@@ -1165,7 +1165,7 @@ function downloadExcel() {
   });
 
   // Crane-wise Summary Row
-  const summaryRow = ['TOTAL (CRANEWISE)', '', ''];
+  const summaryRow = ['TOTAL', '', ''];
   activeCols.forEach(type => {
     const ct = craneTotals[type];
     summaryRow.push(ct.hours > 0 ? parseFloat(ct.hours.toFixed(2)) : 0);
