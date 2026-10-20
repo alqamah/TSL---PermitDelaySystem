@@ -733,7 +733,7 @@ function renderDeptTable(summary) {
 
     tfoot.innerHTML = `
       <tr class="crane-summary-row" id="craneSummaryRow">
-        <td colspan="3" class="crane-summary-label">TOTAL (CRANE/VEHICLE-WISE)</td>
+        <td colspan="3" class="crane-summary-label">EQP TOTAL</td>
         ${craneSummaryCells}
         <td class="dept-total-cell hrs-cell crane-summary-hrs">${grandHrsDisplay}</td>
         <td class="dept-total-cell amt-cell crane-summary-amt">${netLossDisplay}</td>
